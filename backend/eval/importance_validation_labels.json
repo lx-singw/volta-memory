@@ -1,0 +1,6 @@
+[
+  {"observation_text": "I really can't deal with another outage during exam season", "human_importance_score": 0.9},
+  {"observation_text": "My monthly bill is around R3,200", "human_importance_score": 0.85},
+  {"observation_text": "I mentioned I like the colour of my roof tiles", "human_importance_score": 0.2},
+  {"observation_text": "Backup power is my main concern, not savings", "human_importance_score": 0.95}
+]

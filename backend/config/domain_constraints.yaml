@@ -1,0 +1,16 @@
+plausible_monthly_bill_zar:
+  min: 500
+  max: 15000
+
+prohibited_claim_patterns:
+  - "guaranteed 100% savings"
+  - "free solar system"
+  - "no load shedding ever again"
+
+plausible_system_size_kw:
+  min: 3
+  max: 30
+
+notes: >
+  Domain constraints for Volta's South African solar advisory context.
+  Used by memory/plausibility.py before writing extracted memories.

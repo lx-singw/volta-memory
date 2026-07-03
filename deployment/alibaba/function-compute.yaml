@@ -1,0 +1,26 @@
+# Alibaba Cloud Function Compute — alternative deployment
+# See ecs-setup.md for primary ECS path.
+
+ROSTemplateFormatVersion: '2015-09-09'
+Description: Volta Memory backend on Function Compute (scaffold)
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: volta-memory
+  Region:
+    Type: String
+    Default: ap-southeast-1
+
+Resources:
+  VoltaMemoryService:
+    Type: ALIYUN::FC::Service
+    Properties:
+      ServiceName: !Ref ServiceName
+      Description: Volta Memory FastAPI backend (container deploy scaffold)
+
+Outputs:
+  ServiceName:
+    Value: !Ref ServiceName
+  Note:
+    Value: Replace with FC3/custom container deployment wiring and set ALIBABA_FC_SERVICE_NAME

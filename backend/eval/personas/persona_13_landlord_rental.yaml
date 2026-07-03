@@ -1,0 +1,21 @@
+id: persona_13_landlord_rental
+entity_id: eval-entity-13
+theme: Owns rental property
+sessions:
+- session_number: 1
+  messages:
+  - role: user
+    content: "Session 1 opener \u2014 Owns rental property."
+  - role: assistant
+    content: "Thanks for sharing \u2014 tell me more about your situation."
+- session_number: 2
+  messages:
+  - role: user
+    content: Follow-up without repeating session 1 details.
+  - role: assistant
+    content: I'll reference what I remember from last time.
+ground_truth:
+  should_recall_in_session_2:
+  - session 1
+  should_supersede: false
+  adversarial: false

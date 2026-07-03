@@ -1,0 +1,50 @@
+# Volta Memory — local development
+#
+# Default (RDS-first): backend + frontend read DATABASE_URL from .env
+#   docker compose up --build
+#
+# Local Postgres fallback:
+#   docker compose --profile local-db up --build
+
+services:
+  postgres:
+    profiles: ["local-db"]
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: volta
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: volta_memory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U volta -d volta_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
