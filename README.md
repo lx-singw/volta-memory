@@ -27,13 +27,13 @@ Volta is built entirely on a cutting-edge, serverless, cloud-native stack design
 We have prepared a comprehensive 16-document suite covering every aspect of this project—from the database schema to our product roadmap. 
 
 **Start Here:**
-* 📖 [Master Index & Table of Contents](docs/Volta%20Memory/00_Master_Index.md)
-* 🚀 [Demo Script (3-Session Scenario)](docs/Volta%20Memory/06_Demo_Script.md)
-* 📐 [Memory System Design & Decay Logic](docs/Volta%20Memory/03_Memory_System_Design.md)
-* 🗺️ [Architecture Diagrams](docs/Volta%20Memory/15_Architecture_Diagram_Spec.md)
-* 💡 [FAQ & One-Page Pitch](docs/Volta%20Memory/11_FAQ_and_One_Pager.md)
+* 📖 [Master Index & Table of Contents](docs/00_Master_Index.md)
+* 🚀 [Demo Script (3-Session Scenario)](docs/06_Demo_Script.md)
+* 📐 [Memory System Design & Decay Logic](docs/03_Memory_System_Design.md)
+* 🗺️ [Architecture Diagrams](docs/15_Architecture_Diagram_Spec.md)
+* 💡 [FAQ & One-Page Pitch](docs/11_FAQ_and_One_Pager.md)
 
-*(See the `docs/Volta Memory/` directory for PRDs, Security, Roadmap, and more).*
+*(See the `docs/` directory for PRDs, Security, Roadmap, and more).*
 
 ## 🚀 Getting Started Locally
 

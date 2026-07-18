@@ -352,3 +352,58 @@ COST_TRACKING_ENABLED=true
 | Package publishing | Not applicable | Required (release workflow only) | Not applicable |
 | Logging | `DEBUG` recommended | `INFO` | `INFO`, `LOG_REDACT_API_KEYS=true` strictly enforced |
 
+
+---
+
+# ADDENDUM — Variables for Final Push Features
+**Added: June 2026**
+
+| Variable | Required | Default | Used in | Description |
+|----------|----------|---------|---------|-------------|
+| `POPULATION_PRIORS_ENABLED` | No | `true` | `memory/population_priors.py` | Feature flag for cold-start priors (Design Doc §18) |
+| `POPULATION_MIN_CONTRIBUTOR_COUNT` | Yes | `20` | Same | Privacy floor — patterns from fewer contributing entities are never written |
+| `POPULATION_PRIOR_CONFIDENCE` | No | `0.35` | Same | Starting confidence for a population-seeded provisional memory — deliberately low |
+| `CLARIFICATION_IMPORTANCE_THRESHOLD` | No | `0.7` | `memory/clarification.py` | Importance floor above which low confidence triggers active clarification rather than a soft hedge |
+| `REPLAY_ENABLED` | No | `true` | `memory/replay.py` | Feature flag for the memory replay/dreaming cycle |
+| `REPLAY_SAMPLE_SIZE` | No | `5` | Same | Number of old memories re-scored per replay cycle |
+| `REPLAY_DRIFT_THRESHOLD` | No | `0.2` | Same | Minimum importance-score change required to write a reassessment |
+| `META_MEMORY_ENABLED` | No | `true` | `memory/meta_memory.py` | Feature flag for known-gap tracking |
+| `META_MEMORY_DOMAIN_CONFIG` | Yes if enabled | `config/expected_topics.yaml` | Same | Path to the per-domain expected-topic checklist |
+| `SELF_TUNING_ENABLED` | No | `false` | `eval/self_tuning.py` | Off by default — an expensive grid search, run deliberately for the submission's final benchmark pass, not on every CI run |
+| `SELF_TUNING_GRID_SIZE` | No | `27` | Same | Number of lambda/growth-factor combinations tested per search |
+| `CHAOS_TESTING_ENABLED` | No | `false` | `eval/chaos/*` | Off by default in normal runs; enabled explicitly for the chaos-testing report |
+| `CONCURRENCY_STRESS_ENTITY_COUNT` | No | `100` | `eval/concurrency/isolation_stress_test.py` | Number of simultaneous synthetic entities used in the isolation stress test |
+
+
+---
+
+# ADDENDUM — MCP, Tool-Calling, Streaming, and Token Budget Variables
+**Added: June 2026**
+
+| Variable | Required | Default | Used in | Description |
+|----------|----------|---------|---------|-------------|
+| `MCP_SERVER_ENABLED` | No | `true` | `mcp/volta_memory_server.py` | Feature flag for the MCP server |
+| `MCP_TRANSPORT` | No | `stdio` | Same | `stdio` or `http` — which MCP transport mode the server runs |
+| `MCP_SERVER_PORT` | Yes if `MCP_TRANSPORT=http` | `9000` | Same | Port for HTTP-transport MCP server |
+| `NATIVE_TOOL_CALLING_ENABLED` | No | `true` | `chat/dialogue_tools.py` | Feature flag for Qwen native tool-calling on the dialogue-action decision |
+| `STREAMING_ENABLED` | No | `true` | `chat/streaming.py` | Feature flag for SSE streaming responses |
+| `EVAL_INCLUDE_MCP_VARIANT` | No | `true` | `eval/mcp_vs_injection_benchmark.py` | Whether the eval harness runs includes System E (MCP agent-directed) alongside A/B/C/D |
+
+---
+
+## 20. Token Budget Planning — Hackathon Credit Allocation
+
+Given the Qwen Cloud free-trial credit is finite and this project's eval harness, self-tuning search, chaos testing, and public live demo all consume real tokens, this section exists to force an explicit budget check before running the full suite, not discover a shortfall mid-hackathon.
+
+| Activity | Approx. calls | Est. tokens/call | Est. total tokens |
+|----------|---------------|-------------------|--------------------|
+| Core 3-session demo (recording) | ~15 | 500 | 7,500 |
+| Eval harness, systems A–D, 20 personas × 3 sessions | ~240 | 600 | 144,000 |
+| Eval harness, System E (MCP variant) | ~60 | 600 | 36,000 |
+| Self-tuning grid search (27 combos × 20 personas, reduced session count) | ~540 | 400 | 216,000 |
+| Chaos/concurrency testing | ~100 | 300 | 30,000 |
+| Human eval study (8–12 participants × 2 variants) | ~40 | 500 | 20,000 |
+| Public live demo (rate-limited, judging window) | Variable, capped by `LIVE_DEMO_RATE_LIMIT_PER_IP` | 500 | Bounded, monitor actual usage daily |
+
+**Action before running the full suite:** total the known free-trial credit allocation and compare against the ~450,000+ token estimate above (excluding the variable live-demo pool). If tight, the self-tuning grid search (highest individual cost, lowest scoring leverage per the earlier priority ranking) is the first candidate to reduce in scope — cut the grid size or persona count for that specific run before cutting anything from the core eval harness or demo recordings, which carry more direct scoring weight.
+

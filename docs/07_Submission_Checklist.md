@@ -167,3 +167,71 @@
 
 **Revised Problem Value & Impact self-assessment:** with Document 08's additions — a real installable package, proof of provider-agnosticism via a third example, an honest competitive landscape comparison, and a named real-world production adopter — this criterion now has the same standard of evidence as Technical Depth & Engineering, closing the gap identified in the original 17–19/25 estimate.
 
+
+---
+
+# ADDENDUM — Final Push Deliverables & GridFreeHub Relationship Statement
+**Added: June 2026**
+
+| Deliverable | Where specified | Gate before submission |
+|-------------|-----------------|------------------------|
+| Population cold-start priors | Memory Design Doc §18 | Adversarial re-identification test passes; min-contributor floor enforced |
+| Uncertainty-aware clarification | Memory Design Doc §19 | Demo includes a real CLARIFY-triggered moment, not just STATE/SOFT_CHECK |
+| Memory replay cycle | Memory Design Doc §20 | At least one demonstrable importance re-score with drift above threshold |
+| Explicit meta-memory gaps | Memory Design Doc §21 | Transparency view shows known_gaps for the demo entity |
+| Self-tuning constant search | Directory Doc §9 (eval additions) | `constant_search_results` populated, best params documented and justified |
+| Chaos/failure testing | Same | Report showing graceful degradation under Qwen/DB/network failure injection |
+| Concurrency isolation test | Same | 100-entity stress test passes with zero cross-contamination |
+| Human evaluation study | Productization Doc §9 | Honestly-labeled small study, real quotes, raw results published |
+| Public benchmark dataset | Productization Doc §10 | Separately licensed, citable, referenced from main README |
+| Accessibility framing | Productization Doc §11 | Stated explicitly in README/text description, not just implied |
+| Scaled ROI projection | Productization Doc §12 | Uses real BENCHMARKS.md figures, not placeholders |
+| GridFreeHub relationship clarified | Document 10 (new) | Text description uses the precise, bounded claim from Document 10 §5, not an overstated one |
+| FAQ + one-pager | Document 11 (new) | Both included in repo root / docs, one-pager linked first in README |
+
+---
+
+## 12. Final Text Description — Incorporating the GridFreeHub Relationship
+
+Revised closing paragraph for the submission's text description (extends Section 5's draft):
+
+> This memory architecture originated as a design exercise for GridFreeHub, a real solar-marketplace platform in active development. Rather than retrofitting memory into that larger system directly, we deliberately built and benchmarked it as a standalone prototype first — Volta Memory is that prototype. It is not a component that gets imported into GridFreeHub; it is a research vehicle whose validated design (the decay model, contradiction handling, and retrieval ranking specifically) will be used to build GridFreeHub's own memory layer natively, informed by what we proved here rather than by untested assumptions. We believe that separation — proving the hard ideas in a focused prototype before committing them to a larger production system — is itself good engineering practice, and it's why this submission exists as complete, rigorously benchmarked infrastructure in its own right, not a hastily-extracted demo.
+
+
+---
+
+# ADDENDUM — MCP/Tech-Stack Additions and Devpost-Specific Compliance Gates
+**Added: June 2026 | Closes the Tier 1/2 gaps identified in the risk review**
+
+---
+
+## 13. MCP and Tech-Stack Deliverables
+
+| Deliverable | Where specified | Gate before submission |
+|-------------|-----------------|------------------------|
+| MCP server exposing memory as tools/resource | Memory Design Doc §22, API Doc §10 | `conformance_tests.py` passes against a generic MCP client, not just our own Qwen integration |
+| Native Qwen tool-calling for dialogue strategy | Memory Design Doc §23 | Demo shows a real tool-call round-trip, visible in the streaming event log |
+| Streaming responses end-to-end | Memory Design Doc §24 | Frontend renders incremental tokens live in the demo video, not a static "then it appears" cut |
+| MCP vs injection benchmark (System E) | Memory Design Doc §22.3, API Doc §11 | Real measured numbers in BENCHMARKS.md, specifically reporting token-efficiency difference |
+| One-command reproducibility | Directory Doc §12 (docker-compose/Makefile) | `docker-compose up` verified from a genuinely clean environment, not just the dev machine it was built on |
+
+---
+
+## 14. Devpost Platform Compliance (Distinct from the GitHub Repo)
+
+| Requirement | Action | Gate |
+|-------------|--------|------|
+| Full rules reviewed for prior-work / eligibility clauses | Read the linked full rules before further build investment | Confirmed no conflict with GridFreeHub-derived origin, in writing, before continuing |
+| Country/territory exclusion checked | Read the linked full rules' exclusion list | Confirmed eligible before continuing |
+| Confidentiality audit of the public repo | Full read-through of every doc and code comment for GridFreeHub-specific business information | Zero references beyond "a related project informed this design" (Document 10's scope) |
+| License visible in repo About section | Push repo, view the About section rendering live | Visually confirmed, not assumed from file presence alone |
+| Devpost "Built With" tags | Add Qwen Cloud, Alibaba Cloud, MCP, Postgres, pgvector, FastAPI, Next.js, Docker | All present and accurate on the submission form, not just implied by the README |
+| Track identification on submission form | Select Track 1: MemoryAgent explicitly | Confirmed on the actual Devpost form, separate from stating it in the text description |
+| Solo vs. team submission structure | Decide and state explicitly | Stated clearly in the submission, not left ambiguous |
+| Reference architecture / sample projects reviewed | Check Devpost Resources section for existing Qwen/Alibaba templates | Confirms our MCP approach aligns with recommended patterns rather than reinventing incompatibly |
+| Token budget vs. free-trial credit checked | Compare Section 20's estimate against actual granted credit | Confirmed sufficient, or self-tuning search scope reduced accordingly |
+| Video captions | Add captions to both the core and supplementary videos | Present and accurate before upload |
+| Submission timing buffer | Target submission at least 24 hours before the Jul 20, 11pm GMT+2 deadline | Built into the working schedule, not treated as a soft target |
+
+**This section exists specifically because these are pass/fail or scoring-relevant items independent of how good the underlying engineering is — a technically excellent submission that fails a Tier 1 compliance gate scores zero regardless of everything else in this document suite.**
+

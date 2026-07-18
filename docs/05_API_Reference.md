@@ -271,3 +271,88 @@ Starts a session using the study-coach persona instead of Volta, sharing the ide
 }
 ```
 
+
+---
+
+# ADDENDUM — MCP, Native Tool-Calling, and Streaming Endpoints
+**Added: June 2026**
+
+## 9. Streaming Chat Endpoint
+
+### POST /sessions/{session_id}/messages?stream=true
+Same request body as the original endpoint (Section 2), but returns a Server-Sent Events stream instead of a single JSON payload.
+
+**Response stream (text/event-stream):**
+```
+event: token
+data: {"text": "Last"}
+
+event: token
+data: {"text": " time"}
+
+event: tool_call
+data: {"tool": "check_memory_confidence", "status": "invoked"}
+
+event: tool_result
+data: {"tool": "check_memory_confidence", "effective_confidence": 0.81, "recommended_action": "state"}
+
+event: token
+data: {"text": " you mentioned backup power..."}
+
+event: done
+data: {"memory_context_used": [...], "tokens_used": 168}
+```
+
+---
+
+## 10. MCP Server Endpoints
+
+The MCP server runs as a separate process (`mcp/volta_memory_server.py`), exposed via stdio or HTTP transport per MCP spec. Tool invocations are logged identically to any other memory operation for audit consistency.
+
+### Tool: get_memory_context
+```json
+// Request (as Qwen would invoke it)
+{ "entity_id": "demo-consumer-1", "query": "what would a system cost me now?" }
+
+// Response
+{ "packed_memories": [...], "tokens_used": 214 }
+```
+
+### Tool: check_memory_confidence
+```json
+{ "entity_id": "demo-consumer-1", "topic": "backup power priority" }
+
+// Response
+{ "effective_confidence": 0.68, "importance_score": 0.75, "recommended_action": "soft_check" }
+```
+
+### Tool: write_memory
+```json
+{ "entity_id": "demo-consumer-1", "observation": "mentioned considering a second property", "memory_type": "fact" }
+
+// Response
+{ "written": true, "memory_id": "uuid", "plausibility_flag": "plausible" }
+```
+
+### Resource: memory://entity/{entity_id}/summary
+```json
+{ "entity_id": "demo-consumer-1", "high_confidence_summary": "Backup-priority, price-sensitive, R3,800/month bill, no timeline urgency stated yet" }
+```
+
+---
+
+## 11. Eval Endpoint — MCP vs Injection Comparison
+
+### GET /eval/runs/{run_id}/results?include=E_mcp_agent_directed
+Extends the existing eval results endpoint (Section 6) with the fifth system variant.
+
+```json
+{
+  "D_volta_memory": { "recall_accuracy": 0.91, "avg_tokens_per_response": 620 },
+  "E_mcp_agent_directed": { "recall_accuracy": 0.93, "avg_tokens_per_response": 410,
+    "note": "Lower token use — model only calls get_memory_context when actually needed, rather than every turn receiving a full pre-injected context regardless of relevance" }
+}
+```
+
+*(Illustrative — real run replaces with measured figures.)*
+

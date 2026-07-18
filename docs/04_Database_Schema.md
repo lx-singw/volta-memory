@@ -215,3 +215,60 @@ CREATE TABLE consolidation_log (
 );
 ```
 
+
+---
+
+# ADDENDUM — Schema for Final Push Features
+**Added: June 2026**
+
+```sql
+-- Population-level cold-start priors (Design Doc §18)
+-- No foreign keys to individual entities — strictly aggregate
+CREATE TABLE population_patterns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  signal_feature text NOT NULL,          -- e.g. 'mentions_backup_loadshedding'
+  correlated_outcome text NOT NULL,       -- e.g. 'confirmed_backup_primary'
+  correlation_strength decimal(4,3) NOT NULL,
+  contributing_entity_count integer NOT NULL CHECK (contributing_entity_count >= 20),
+  computed_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Meta-memory known gaps (Design Doc §21)
+CREATE TABLE meta_memory_gaps (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id text NOT NULL,
+  domain text NOT NULL,
+  expected_topic text NOT NULL,
+  gap_still_open boolean NOT NULL DEFAULT true,
+  closed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Memory replay log (Design Doc §20)
+CREATE TABLE replay_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  memory_id uuid NOT NULL REFERENCES memories(id),
+  old_importance_score decimal(3,2) NOT NULL,
+  new_importance_score decimal(3,2) NOT NULL,
+  drift decimal(4,3) GENERATED ALWAYS AS 
+    (abs(new_importance_score - old_importance_score)) STORED,
+  replayed_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Add dialogue_action tracking to messages (Design Doc §19)
+ALTER TABLE messages
+  ADD COLUMN dialogue_action text
+    CHECK (dialogue_action IN ('clarify', 'state', 'soft_check', 'ignore', NULL));
+
+-- Self-tuning meta-optimization results
+CREATE TABLE constant_search_results (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  param_set jsonb NOT NULL,               -- the tested lambda/growth-factor combo
+  recall_accuracy decimal(5,4),
+  forgetting_correctness decimal(5,4),
+  joint_score decimal(5,4),                -- combined objective
+  is_selected_best boolean DEFAULT false,
+  run_at timestamptz NOT NULL DEFAULT now()
+);
+```
+

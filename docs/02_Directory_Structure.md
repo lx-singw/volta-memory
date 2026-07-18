@@ -327,3 +327,118 @@ deployment/
                                       # breakable or cost-exhausting)
 ```
 
+
+---
+
+# ADDENDUM — Directory Additions for Final Push Features
+**Added: June 2026**
+
+```
+backend/app/memory/
+├── population_priors.py            # Design Doc §18
+│   # get_cold_start_prior(signal_features) -> ProvisionalMemory | None
+│   # rebuild_population_patterns()  -> None   (batch job, min-count enforced)
+│
+├── clarification.py                 # Design Doc §19
+│   # compute_dialogue_action(memory) -> DialogueAction
+│   #   Returns CLARIFY | STATE | SOFT_CHECK | IGNORE per the decision matrix
+│
+├── replay.py                        # Design Doc §20
+│   # run_replay_cycle(entity_id) -> ReplayResult
+│   #   Re-scores a sample of old memories against current full context
+│
+└── meta_memory.py                   # Design Doc §21
+    # expected_topics_by_domain: dict[str, list[str]]
+    # compute_known_gaps(entity_id, domain) -> list[str]
+
+backend/eval/
+├── self_tuning.py                    # Meta-optimization over decay/stability constants
+│   # search_optimal_constants(param_grid) -> BestConstants
+│   #   Runs the eval harness across a grid of lambda/growth-factor 
+│   #   combinations, reports which constants maximize recall_accuracy 
+│   #   + forgetting_correctness jointly
+│
+├── chaos/
+│   ├── qwen_failure_injection.py     # Simulates API timeouts/errors mid-session
+│   ├── db_failure_injection.py        # Simulates connection drops during writes
+│   └── network_partition_test.py      # Simulates partial connectivity loss
+│
+└── concurrency/
+    └── isolation_stress_test.py       # Many simultaneous entities, asserts 
+                                       # zero cross-contamination of memory 
+                                       # or retrieved context between entities
+
+backend/tests/
+└── coverage_report.py                 # Generates and publishes test coverage %
+                                       # alongside mypy --strict static 
+                                       # analysis results, both surfaced in 
+                                       # the README as an engineering-maturity 
+                                       # signal
+
+benchmark-dataset/                     # Separate, citable public release 
+├── personas/                          # (Productization Doc §10)
+├── importance_validation_labels.json
+├── LICENSE                            # Separate license for the dataset 
+│                                      # itself (e.g. CC-BY), distinct from 
+│                                      # the code's MIT license
+├── CITATION.cff
+└── README.md                          # Labeling methodology, intended use
+
+docs/
+├── human-eval-study/
+│   ├── protocol.md                    # Study design (Productization Doc §9)
+│   ├── raw-results.csv
+│   └── participant-quotes.md
+├── FAQ.md                             # Mirrors Document 11 §2
+└── ONE_PAGER.md                       # Mirrors Document 11 §1
+```
+
+
+---
+
+# ADDENDUM — MCP Server, Tool-Calling, Streaming, and Reproducibility
+**Added: June 2026**
+
+```
+backend/
+├── mcp/
+│   ├── volta_memory_server.py       # Design Doc §22 — MCP server exposing 
+│   │                                # get_memory_context, check_memory_confidence, 
+│   │                                # write_memory as tools + the summary resource
+│   ├── tool_schemas.py               # JSON schemas for all exposed tools/resources
+│   └── conformance_tests.py           # Verifies the MCP server correctly implements 
+│                                     # the protocol spec — run against any 
+│                                     # MCP-compatible client, not just Qwen
+│
+├── app/chat/
+│   ├── qwen_client.py                 # UPDATED: adds complete_stream() alongside 
+│   │                                 # existing complete(), plus native tool-calling 
+│   │                                 # support (Design Doc §23)
+│   ├── dialogue_tools.py               # NEW — decide_dialogue_action tool schema 
+│   │                                  # and handler (Design Doc §23)
+│   └── streaming.py                    # NEW — SSE stream construction, tool-call 
+│                                      # event surfacing mid-stream (Design Doc §24)
+│
+└── eval/
+    └── mcp_vs_injection_benchmark.py    # NEW — the fifth system variant 
+                                        # (E_mcp_agent_directed) comparison run, 
+                                        # Design Doc §22.3
+
+frontend/app/
+└── components/
+    └── StreamingMessage.tsx              # NEW — renders SSE token stream 
+                                          # incrementally, shows tool-call 
+                                          # indicators ("checking memory...") 
+                                          # inline during generation
+
+# Root-level reproducibility (elevated from nice-to-have to required)
+docker-compose.yml                         # One-command full stack: postgres, 
+                                           # backend, frontend, MCP server — 
+                                           # `docker-compose up` and the demo 
+                                           # is running, no manual setup steps
+Makefile                                    # `make demo` — runs docker-compose up 
+                                           # AND seeds nothing (memory starts 
+                                           # empty by design) AND opens the 
+                                           # frontend URL
+```
+

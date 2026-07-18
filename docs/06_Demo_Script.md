@@ -146,3 +146,47 @@ Given the depth added, produce **two videos**: the original 3-minute submission 
 
 **Closing card:** Repo URL, BENCHMARKS.md direct link, live demo URL, license badge.
 
+
+---
+
+# ADDENDUM — Final Push Demo Segments
+**Added: June 2026 | Additional segments for the supplementary deep-dive video**
+
+---
+
+## 8. Segment F — Population Cold-Start Priors (4:45–5:15)
+
+**On screen:** A brand-new, never-before-seen entity's very first message, shown alongside the transparency view.
+
+**Narration:** "Watch this — before this person has said more than one sentence, Volta already has a provisional, low-confidence sense of what might matter to them, based on anonymized patterns across everyone who's used the system before. No individual data — just aggregate statistics, with a strict minimum-contributor floor before any pattern is even written. It's clearly marked as inferred, and it's the first thing overridden the moment real signal arrives."
+
+## 9. Segment G — Active Clarification (5:15–5:45)
+
+**On screen:** A scripted moment where a high-importance, low-confidence topic (e.g. a passing mention of a safety-critical need) triggers Volta to ask directly rather than proceed.
+
+**Narration:** "This is the difference between a system that just phrases things carefully and one that changes its behaviour. High stakes, low certainty — Volta asks. That decision is coming directly from the memory system's own confidence and importance scores, not a hardcoded rule for this specific topic."
+
+## 10. Closing Update
+
+**Revised final card:** Repo URL · BENCHMARKS.md · Public dataset URL · Live demo URL · License badge · "Design informed the memory architecture for GridFreeHub — see Document 10 for the precise relationship."
+
+
+---
+
+# ADDENDUM — MCP and Streaming Demo Segments
+**Added: June 2026**
+
+## 11. Segment H — MCP Tool Calling Live (Core video, insert at 1:20–1:35, tightening Session 2's existing runtime)
+
+**On screen:** Session 2's proactive recall moment (original Section 3), but now shown with the streaming event log visible alongside the chat — tokens appearing incrementally, with a brief "checking memory..." indicator appearing exactly when Qwen calls `get_memory_context`.
+
+**Narration:** "This isn't pre-loaded context — watch the tool call happen live. Qwen is deciding, mid-response, that it needs to check memory, calling out to our MCP server, and getting a structured answer back before continuing to generate."
+
+## 12. Segment I — MCP Server Architecture (Supplementary deep-dive, insert after Segment C, ~3:15–3:45)
+
+**On screen:** Architecture diagram highlighting the MCP server as a distinct component, tool schemas visible.
+
+**Narration:** "We didn't just call the Qwen API from our backend — we exposed the memory engine itself as standard MCP tools. Any MCP-compatible client could use these, not just this specific chat interface. And we benchmarked it — agent-directed tool calling versus our original prompt-injection approach, measured in BENCHMARKS.md. The tool-calling version used 34% fewer tokens per response, because the model only reaches for memory when it actually needs it, instead of every single turn being force-fed a full context block regardless of relevance."
+
+*(Note: percentage illustrative — replace with real measured figure from the System D vs E comparison once run.)*
+
