@@ -10,12 +10,12 @@ from app.memory.models import Memory
 
 
 def compute_stability(memory: Memory) -> float:
-    """S_n = S_0 * growth_factor^reinforcement_count."""
+    """S_n = S_0 * growth_factor^cross_session_reinforcement_count."""
     settings = get_settings()
     s0 = memory.stability_s0 or settings.s0_default
     importance = memory.importance_score or 0.5
     growth = settings.stability_growth_base + settings.stability_growth_importance_range * importance
-    return s0 * math.pow(growth, max(memory.reinforcement_count - 1, 0))
+    return s0 * math.pow(growth, max(memory.cross_session_reinforcement_count - 1, 0))
 
 
 def retention_strength(memory: Memory, now: datetime | None = None) -> float:

@@ -74,7 +74,7 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
             (uuid4(), session_id, user_message),
         )
 
-    memory_context = load_context(entity_id, query_context=user_message)
+    memory_context = load_context(entity_id, query_context=user_message, persona=persona)
     system_prompt = build_system_prompt(memory_context, persona_template=_persona_prompt(persona))
     messages = _fetch_messages(session_id)
 
@@ -127,6 +127,7 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
         "memory_context_used": context_snapshot,
         "tokens_used": tokens_used,
         "message_id": str(message_id),
+        "known_gaps": memory_context.known_gaps,
     }
 
 
@@ -169,10 +170,27 @@ def end_session(session_id: UUID) -> dict:
             if result.capped_confidence is not None:
                 draft.base_confidence = min(draft.base_confidence, result.capped_confidence)
 
-        conflict = detect_conflict(draft.observation, existing)
-        if conflict and conflict.id:
-            _, new_memory = resolve(conflict, draft.observation, entity_id, session_id)
+        from app.memory.contradiction import classify_relationship
+        rel_info = classify_relationship(draft.observation, existing)
+        rel = rel_info.get("relationship")
+        target_mem = rel_info.get("target_memory")
+
+        if rel == "contradicts" and target_mem and target_mem.id:
+            _, new_memory = resolve(target_mem, draft.observation, entity_id, session_id)
             written.append(new_memory)
+            continue
+        elif rel == "reinforces" and target_mem and target_mem.id:
+            from app.memory.decay import reinforce
+            from app.memory.store import update_memory_reinforcement
+            updated_mem = reinforce(target_mem, session_id=session_id)
+            update_memory_reinforcement(
+                memory_id=target_mem.id,
+                reinforcement_count=updated_mem.reinforcement_count,
+                cross_session_count=updated_mem.cross_session_reinforcement_count,
+                base_confidence=updated_mem.base_confidence,
+                last_reinforced_at=updated_mem.last_reinforced_at
+            )
+            written.append(updated_mem)
             continue
 
         memory = write_from_draft(entity_id, draft, source_session_id=session_id)

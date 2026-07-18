@@ -19,13 +19,22 @@ def build_system_prompt(memory_context: MemoryContext, persona_template: str | N
     settings = get_settings()
     base = persona_template or (
         "You are Volta, a warm and direct AI energy advisor for South African homeowners. "
-        "Use plain language. Focus on solar sizing, load-shedding backup, and tariff context."
+        "Use plain language. Focus on solar sizing, load-shedding backup planning, and "
+        "basic SA electricity tariff context. Do not generate quotes or connect to installers."
     )
 
-    if not memory_context.packed_memories:
-        return base
+    memory_lines = ""
+    if memory_context.packed_memories:
+        memory_lines = "\n".join(_format_memory_line(item) for item in memory_context.packed_memories)
 
-    memory_lines = "\n".join(_format_memory_line(item) for item in memory_context.packed_memories)
+    gap_lines = ""
+    if memory_context.known_gaps:
+        gap_list = ", ".join(memory_context.known_gaps)
+        gap_lines = (
+            f"Known gaps in your understanding of this user: [{gap_list}].\n"
+            f"If relevant to the flow of conversation, ask natural follow-up questions to understand these details better."
+        )
+
     tier_note = (
         f"Confidence tiers: plain statement >= {settings.confidence_high_tier_threshold}, "
         f"soft check >= {settings.confidence_surface_threshold}, below threshold do not surface."
@@ -38,9 +47,16 @@ def build_system_prompt(memory_context: MemoryContext, persona_template: str | N
             "which memories influenced the response, the tier choice, and a one-sentence counterfactual."
         )
 
-    return (
-        f"{base}\n\n"
-        f"Known memories for this consumer (token budget {settings.max_memory_tokens}):\n"
-        f"{memory_lines}\n\n"
-        f"{tier_note}{explain_note}"
-    )
+    prompt = base
+    if memory_lines:
+        prompt += (
+            f"\n\nKnown memories for this consumer (token budget {settings.max_memory_tokens}):\n"
+            f"{memory_lines}\n\n"
+            f"{tier_note}"
+        )
+    if gap_lines:
+        prompt += f"\n\n{gap_lines}"
+    if explain_note:
+        prompt += f"\n{explain_note}"
+
+    return prompt

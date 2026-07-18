@@ -32,6 +32,7 @@ class Memory(BaseModel):
     evidence: dict[str, Any] | None = None
     base_confidence: float = Field(ge=0.0, le=1.0)
     reinforcement_count: int = 1
+    cross_session_reinforcement_count: int = 1
     first_observed_at: datetime | None = None
     last_reinforced_at: datetime | None = None
     is_superseded: bool = False
@@ -64,6 +65,7 @@ class MemoryContext(BaseModel):
     entity_id: str
     packed_memories: list[ScoredMemory] = Field(default_factory=list)
     tokens_used: int = 0
+    known_gaps: list[str] = Field(default_factory=list)
 
 
 class ImportanceResult(BaseModel):

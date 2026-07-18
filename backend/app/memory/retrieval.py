@@ -65,8 +65,18 @@ def build_memory_context(
     memories: list[Memory],
     query_context: str = "",
     max_tokens: int | None = None,
+    persona: str = "volta",
 ) -> MemoryContext:
+    from app.memory.meta_memory import find_missing_topics
     ranked = rank_memories(entity_id, memories, query_context=query_context)
     packed = pack_to_token_budget(ranked, max_tokens=max_tokens)
     tokens_used = sum(count_tokens(item.memory.observation) for item in packed)
-    return MemoryContext(entity_id=entity_id, packed_memories=packed, tokens_used=tokens_used)
+    
+    gaps = find_missing_topics(memories, persona=persona)
+    
+    return MemoryContext(
+        entity_id=entity_id,
+        packed_memories=packed,
+        tokens_used=tokens_used,
+        known_gaps=gaps
+    )

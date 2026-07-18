@@ -8,7 +8,8 @@ from uuid import UUID
 
 from app.config import get_settings
 from app.memory.models import Memory, MemoryType
-from app.memory.stability import retention_strength
+from app.memory.stability import retention_strength, is_cross_session_reinforcement
+from app.memory.importance import effective_lambda
 
 
 def _utcnow() -> datetime:
@@ -24,7 +25,7 @@ def apply_decay(memory: Memory, now: datetime | None = None) -> float:
         last = last.replace(tzinfo=timezone.utc)
 
     days = max((now - last).total_seconds() / 86400.0, 0.0)
-    lam = settings.lambda_for_memory_type(memory.memory_type.value)
+    lam = effective_lambda(memory)
 
     if memory.memory_type == MemoryType.CORRECTION and days <= settings.correction_floor_days:
         return max(memory.base_confidence, settings.confidence_surface_threshold + 0.01)
@@ -34,11 +35,17 @@ def apply_decay(memory: Memory, now: datetime | None = None) -> float:
     return memory.base_confidence * decay_factor
 
 
-def reinforce(memory: Memory, new_evidence: dict | None = None) -> Memory:
+def reinforce(memory: Memory, new_evidence: dict | None = None, session_id: UUID | None = None) -> Memory:
     """Reset decay clock and nudge confidence upward (capped at 0.98)."""
     updated = memory.model_copy(deep=True)
     updated.last_reinforced_at = _utcnow()
     updated.reinforcement_count += 1
+
+    if session_id is not None:
+        if is_cross_session_reinforcement(memory, str(session_id)):
+            updated.cross_session_reinforcement_count += 1
+            updated.source_session_id = session_id
+
     updated.base_confidence = min(updated.base_confidence + 0.03, 0.98)
     if new_evidence:
         updated.evidence = new_evidence

@@ -29,6 +29,7 @@ class MessageResponse(BaseModel):
     memory_context_used: list[dict]
     tokens_used: int
     message_id: str | None = None
+    known_gaps: list[str] = Field(default_factory=list)
 
 
 class EndSessionResponse(BaseModel):
