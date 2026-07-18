@@ -5,6 +5,6 @@
 | System | Recall accuracy | Forgetting correctness | Cost/session avg | Sample |
 |--------|-----------------|------------------------|------------------|--------|
 | A_no_memory | 0.0 | None | 0.005 | 20 |
-| B_full_context | 1.0 | None | 0.02 | 20 |
-| C_naive_rag | 1.0 | None | 0.012 | 20 |
+| B_full_context | 0.7982 | None | 0.02 | 20 |
+| C_naive_rag | 0.7982 | None | 0.012 | 20 |
 | D_volta_memory | 0.0 | None | 0.014 | 20 |

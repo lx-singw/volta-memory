@@ -117,6 +117,8 @@ def write_from_draft(
         confidence=draft.base_confidence,
         evidence=draft.evidence,
         source_session_id=source_session_id,
+        importance_score=draft.importance_score,
+        importance_reasoning=draft.importance_reasoning,
     )
 
 

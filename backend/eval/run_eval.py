@@ -25,8 +25,8 @@ SYSTEMS = {
 
 def _load_personas(directory: Path) -> list[dict]:
     if not directory.is_absolute():
-        backend_root = Path(__file__).resolve().parents[1]
-        directory = backend_root / directory
+        repo_root = Path(__file__).resolve().parents[2]
+        directory = repo_root / directory
     personas = []
     for path in sorted(directory.glob("persona_*.yaml")):
         with path.open(encoding="utf-8") as handle:

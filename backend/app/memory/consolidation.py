@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from app.config import get_settings
+from app.chat.qwen_client import get_qwen_client
 from app.memory.decay import apply_decay
 from app.memory.models import ConsolidationResult, Memory, MemoryDraft, MemoryType
 from app.memory.store import list_memories, supersede, write_from_draft
+
+logger = logging.getLogger(__name__)
 
 
 def should_consolidate(entity_id: str, completed_session_count: int) -> bool:
@@ -41,11 +45,38 @@ def run_consolidation(entity_id: str) -> ConsolidationResult:
     if len(stale) < 2:
         return ConsolidationResult(memories_consolidated=0)
 
-    summary = "; ".join(item.observation for item in stale[:5])
+    stale_text = "\n".join(f"- {item.observation}" for item in stale[:5])
+
+    system_prompt = (
+        "You are an expert memory consolidation assistant. Your task is to take multiple stale memories "
+        "about a user and consolidate them into a single, cohesive, and concise observation statement. "
+        "Do not lose critical facts (like budget, location, preferences) but merge redundancies and "
+        "simplify phrasing.\n\n"
+        "Return a JSON object in this format:\n"
+        "{\n"
+        "  \"consolidated_observation\": \"A single consolidated observation statement in plain English (e.g. 'User has R3000 monthly bill and wants load-shedding backup')\",\n"
+        "  \"confidence\": float (0.0 to 1.0, representing the confidence of this consolidated observation)\n"
+        "}"
+    )
+
+    user_prompt = f"Stale memories to consolidate:\n{stale_text}"
+
+    consolidated_obs = f"Consolidated summary: {'; '.join(item.observation for item in stale[:5])}"
+    confidence = 0.7
+
+    try:
+        client = get_qwen_client()
+        result = client.complete_json(system_prompt, user_prompt)
+        if isinstance(result, dict) and "consolidated_observation" in result:
+            consolidated_obs = result["consolidated_observation"]
+            confidence = float(result.get("confidence", 0.7))
+    except Exception as e:
+        logger.error(f"Error executing Qwen consolidation: {e}")
+
     draft = MemoryDraft(
         memory_type=MemoryType.CONSOLIDATED,
-        observation=f"Consolidated summary: {summary}",
-        base_confidence=0.7,
+        observation=consolidated_obs,
+        base_confidence=confidence,
     )
     consolidated = write_from_draft(entity_id, draft)
 

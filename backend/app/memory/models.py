@@ -49,6 +49,8 @@ class MemoryDraft(BaseModel):
     observation: str
     base_confidence: float = 0.75
     evidence: dict[str, Any] | None = None
+    importance_score: float | None = None
+    importance_reasoning: str | None = None
 
 
 class ScoredMemory(BaseModel):

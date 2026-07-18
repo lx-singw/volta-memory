@@ -158,6 +158,12 @@ def end_session(session_id: UUID) -> dict:
     written = []
 
     for draft in drafts:
+        if draft.importance_score is None:
+            from app.memory.importance import score_importance
+            imp = score_importance(draft.observation)
+            draft.importance_score = imp.importance_score
+            draft.importance_reasoning = imp.importance_reasoning
+
         if settings.plausibility_check_enabled:
             result = check_plausibility(draft.observation)
             if result.capped_confidence is not None:
