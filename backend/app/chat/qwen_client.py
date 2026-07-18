@@ -85,6 +85,36 @@ class QwenClient:
             logger.error(f"Failed to parse Qwen JSON response: {data if 'data' in locals() else exc}")
             raise RuntimeError(f"Unexpected Qwen response or invalid JSON: {content if 'content' in locals() else data}") from exc
 
+    def embed(self, text: str, text_type: str = "document") -> list[float]:
+        settings = self.settings
+        if not settings.qwen_api_key:
+            logger.warning("QWEN_API_KEY not set — returning mock random embedding")
+            seed = sum(ord(c) for c in text) % 997
+            return [(seed + i) / settings.embedding_dimension for i in range(settings.embedding_dimension)]
+
+        payload: dict[str, Any] = {
+            "model": settings.qwen_model_embedding,
+            "input": {
+                "texts": [text],
+            },
+            "parameters": {
+                "text_type": text_type
+            }
+        }
+
+        headers = {"Authorization": f"Bearer {settings.qwen_api_key}"}
+        url = f"{settings.qwen_api_base_url.rstrip('/')}/services/embeddings/text-embedding"
+
+        with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
+            response = client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        try:
+            return data["output"]["embeddings"][0]["embedding"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(f"Unexpected Qwen embedding response shape: {data}") from exc
+
 
 def get_qwen_client() -> QwenClient:
     return QwenClient()

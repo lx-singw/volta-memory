@@ -34,8 +34,12 @@ def rank_memories(entity_id: str, memories: list[Memory], query_context: str = "
             continue
         score = effective * math.log1p(memory.reinforcement_count) * _recency_weight(memory, now)
         tier = ConfidenceTier(confidence_tier(effective))
+        
+        from app.memory.clarification import compute_dialogue_action
+        action = compute_dialogue_action(memory, effective)
+        
         ranked.append(
-            ScoredMemory(memory=memory, effective_confidence=effective, score=score, tier=tier)
+            ScoredMemory(memory=memory, effective_confidence=effective, score=score, tier=tier, dialogue_action=action)
         )
 
     ranked.sort(key=lambda item: item.score, reverse=True)
@@ -68,15 +72,41 @@ def build_memory_context(
     persona: str = "volta",
 ) -> MemoryContext:
     from app.memory.meta_memory import find_missing_topics
+    from app.memory.embeddings import embed_transcript_chunk, search_fallback
+    
     ranked = rank_memories(entity_id, memories, query_context=query_context)
     packed = pack_to_token_budget(ranked, max_tokens=max_tokens)
     tokens_used = sum(count_tokens(item.memory.observation) for item in packed)
     
     gaps = find_missing_topics(memories, persona=persona)
     
+    fallback_chunks = []
+    settings = get_settings()
+    if settings.hybrid_retrieval_enabled and query_context.strip():
+        query_embedding = embed_transcript_chunk(query_context)
+        
+        max_similarity = 0.0
+        for item in packed:
+            obs = item.memory.observation
+            obs_embedding = embed_transcript_chunk(obs)
+            dot = sum(a * b for a, b in zip(query_embedding, obs_embedding))
+            norm_q = math.sqrt(sum(a * a for a in query_embedding))
+            norm_o = math.sqrt(sum(a * a for a in obs_embedding))
+            sim = dot / (norm_q * norm_o) if (norm_q * norm_o) > 0 else 0.0
+            if sim > max_similarity:
+                max_similarity = sim
+                
+        if max_similarity < settings.hybrid_similarity_threshold:
+            fallback_chunks = search_fallback(
+                query_embedding=query_embedding,
+                entity_id=entity_id,
+                budget_tokens=settings.fallback_budget_tokens
+            )
+            
     return MemoryContext(
         entity_id=entity_id,
         packed_memories=packed,
         tokens_used=tokens_used,
-        known_gaps=gaps
+        known_gaps=gaps,
+        fallback_chunks=fallback_chunks
     )

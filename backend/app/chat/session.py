@@ -66,6 +66,10 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
             raise ValueError("Session not found or already ended")
 
         entity_id = session_row["entity_id"]
+        
+        from app.memory.priors import seed_population_priors
+        seed_population_priors(entity_id, user_message, session_id)
+        
         conn.execute(
             """
             INSERT INTO messages (id, conversation_id, role, content)
@@ -154,6 +158,11 @@ def end_session(session_id: UUID) -> dict:
         ).fetchall()
 
     transcript = "\n".join(f"{row['role']}: {row['content']}" for row in transcript_rows)
+    
+    from app.memory.embeddings import store_transcript_chunk
+    for row in transcript_rows:
+        store_transcript_chunk(entity_id, session_id, f"{row['role']}: {row['content']}")
+        
     drafts = extract_observations(transcript)
     existing = list_memories(entity_id, include_superseded=False)
     written = []

@@ -43,6 +43,7 @@ class Memory(BaseModel):
     stability_s0: float | None = None
     plausibility_flag: str = "plausible"
     consolidation_source_ids: list[UUID] | None = None
+    source: str = "individual"
 
 
 class MemoryDraft(BaseModel):
@@ -52,6 +53,7 @@ class MemoryDraft(BaseModel):
     evidence: dict[str, Any] | None = None
     importance_score: float | None = None
     importance_reasoning: str | None = None
+    source: str = "individual"
 
 
 class ScoredMemory(BaseModel):
@@ -59,6 +61,7 @@ class ScoredMemory(BaseModel):
     effective_confidence: float
     score: float
     tier: ConfidenceTier
+    dialogue_action: str = "STATE"
 
 
 class MemoryContext(BaseModel):
@@ -66,6 +69,7 @@ class MemoryContext(BaseModel):
     packed_memories: list[ScoredMemory] = Field(default_factory=list)
     tokens_used: int = 0
     known_gaps: list[str] = Field(default_factory=list)
+    fallback_chunks: list[str] = Field(default_factory=list)
 
 
 class ImportanceResult(BaseModel):

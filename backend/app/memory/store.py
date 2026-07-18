@@ -32,6 +32,7 @@ def _row_to_memory(row: dict[str, Any]) -> Memory:
         stability_s0=float(row["stability_s0"]) if row.get("stability_s0") is not None else None,
         plausibility_flag=row.get("plausibility_flag") or "plausible",
         consolidation_source_ids=row.get("consolidation_source_ids"),
+        source=row.get("source") or "individual",
     )
 
 
@@ -65,6 +66,7 @@ def write_memory(
     importance_score: float | None = None,
     importance_reasoning: str | None = None,
     plausibility_flag: str = "plausible",
+    source: str = "individual",
 ) -> Memory:
     memory_id = uuid4()
     now = datetime.now(timezone.utc)
@@ -77,13 +79,13 @@ def write_memory(
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag
+                plausibility_flag, source
             ) VALUES (
                 %s, %s, %s, %s, %s,
                 %s, 1, 1,
                 %s, %s,
                 %s, %s, %s,
-                %s
+                %s, %s
             )
             RETURNING *
             """,
@@ -100,6 +102,7 @@ def write_memory(
                 importance_score,
                 importance_reasoning,
                 plausibility_flag,
+                source,
             ),
         ).fetchone()
 
@@ -120,6 +123,7 @@ def write_from_draft(
         source_session_id=source_session_id,
         importance_score=draft.importance_score,
         importance_reasoning=draft.importance_reasoning,
+        source=draft.source,
     )
 
 
