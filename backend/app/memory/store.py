@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
+import logging
 from app.db import get_connection
+
+logger = logging.getLogger(__name__)
 from app.memory.models import Memory, MemoryContext, MemoryDraft, MemoryType
 from app.memory.retrieval import build_memory_context
 
@@ -52,7 +55,11 @@ def list_memories(entity_id: str, include_superseded: bool = True) -> list[Memor
 
 
 def load_context(entity_id: str, query_context: str = "", persona: str = "volta") -> MemoryContext:
-    memories = list_memories(entity_id, include_superseded=False)
+    try:
+        memories = list_memories(entity_id, include_superseded=False)
+    except Exception as e:
+        logger.error(f"Failed to load memories due to database error: {e}")
+        memories = []
     return build_memory_context(entity_id, memories, query_context=query_context, persona=persona)
 
 

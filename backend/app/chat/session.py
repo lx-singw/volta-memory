@@ -126,12 +126,20 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
             )
 
     tokens_used = count_tokens(system_prompt) + count_tokens(reply)
+    explain_trace = {
+        "referenced_memory_ids": [str(x) for x in explain.referenced_memory_ids],
+        "primary_influence_memory_id": str(explain.primary_influence_memory_id) if explain.primary_influence_memory_id else None,
+        "confidence_tier_choice": explain.confidence_tier_choice,
+        "counterfactual": explain.counterfactual,
+    }
+
     return {
         "reply": reply,
         "memory_context_used": context_snapshot,
         "tokens_used": tokens_used,
         "message_id": str(message_id),
         "known_gaps": memory_context.known_gaps,
+        "explain_trace": explain_trace,
     }
 
 

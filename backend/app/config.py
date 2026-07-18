@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Memory tuning
     max_memory_tokens: int = Field(default=800, alias="MAX_MEMORY_TOKENS")
     fallback_budget_tokens: int = Field(default=150, alias="FALLBACK_BUDGET_TOKENS")
-    decay_lambda_preference: float = Field(default=0.01, alias="DECAY_LAMBDA_PREFERENCE")
+    decay_lambda_preference: float = Field(default=0.02, alias="DECAY_LAMBDA_PREFERENCE")
     decay_lambda_fact: float = Field(default=0.01, alias="DECAY_LAMBDA_FACT")
     decay_lambda_outcome: float = Field(default=0.05, alias="DECAY_LAMBDA_OUTCOME")
     decay_lambda_correction: float = Field(default=0.02, alias="DECAY_LAMBDA_CORRECTION")

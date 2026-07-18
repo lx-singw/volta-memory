@@ -30,6 +30,7 @@ class MessageResponse(BaseModel):
     tokens_used: int
     message_id: str | None = None
     known_gaps: list[str] = Field(default_factory=list)
+    explain_trace: dict | None = None
 
 
 class EndSessionResponse(BaseModel):
@@ -72,6 +73,43 @@ def post_message(
             try:
                 for chunk in send_message_stream(session_id, body.message, persona=persona):
                     yield f"data: {json.dumps({'token': chunk})}\n\n"
+                
+                from app.db import get_connection
+                with get_connection() as conn:
+                    last_msg = conn.execute(
+                        """
+                        SELECT id, memory_context_used FROM messages
+                        WHERE conversation_id = %s AND role = 'assistant'
+                        ORDER BY created_at DESC LIMIT 1
+                        """,
+                        (session_id,)
+                    ).fetchone()
+                    if last_msg:
+                        trace_row = conn.execute(
+                            """
+                            SELECT referenced_memory_ids, primary_influence_memory_id, confidence_tier_choice, counterfactual
+                            FROM explain_traces WHERE message_id = %s
+                            """,
+                            (last_msg["id"],)
+                        ).fetchone()
+                        
+                        trace_dict = None
+                        if trace_row:
+                            trace_dict = {
+                                "referenced_memory_ids": [str(x) for x in trace_row["referenced_memory_ids"]],
+                                "primary_influence_memory_id": str(trace_row["primary_influence_memory_id"]) if trace_row["primary_influence_memory_id"] else None,
+                                "confidence_tier_choice": trace_row["confidence_tier_choice"],
+                                "counterfactual": trace_row["counterfactual"]
+                            }
+                        
+                        ctx_data = last_msg['memory_context_used']
+                        if isinstance(ctx_data, str):
+                            ctx_data = json.loads(ctx_data)
+                        
+                        yield f"data: {json.dumps({
+                            'memory_context_used': ctx_data,
+                            'explain_trace': trace_dict
+                        })}\n\n"
             except ValueError as exc:
                 yield f"data: {json.dumps({'error': str(exc)})}\n\n"
         return StreamingResponse(event_generator(), media_type="text/event-stream")

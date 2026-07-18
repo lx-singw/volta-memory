@@ -105,7 +105,12 @@ export default function ChatPage() {
       const data = await res.json();
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.reply, memoryContext: data.memory_context_used },
+        { 
+          role: "assistant", 
+          content: data.reply, 
+          memoryContext: data.memory_context_used,
+          explainTrace: data.explain_trace 
+        },
       ]);
       speak(data.reply);
     } catch (err) {
@@ -160,7 +165,7 @@ export default function ChatPage() {
 
         <div style={{ marginTop: "2rem", minHeight: 400, paddingBottom: "100px" }}>
           {messages.map((msg, idx) => (
-            <ChatMessage key={idx} role={msg.role} content={msg.content} memoryContext={msg.memoryContext} />
+            <ChatMessage key={idx} role={msg.role} content={msg.content} memoryContext={msg.memoryContext} explainTrace={msg.explainTrace} />
           ))}
         </div>
 

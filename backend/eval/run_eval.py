@@ -11,6 +11,7 @@ from eval.baselines import system_a_no_memory as system_a
 from eval.baselines import system_b_full_context as system_b
 from eval.baselines import system_c_naive_rag as system_c
 from eval.baselines import system_d_volta_memory as system_d
+from eval.baselines import system_e_mcp_agent as system_e
 from eval.ground_truth import load_persona_expectations
 from eval.metrics import recall_accuracy, summarize_metrics
 
@@ -20,6 +21,7 @@ SYSTEMS = {
     "B": ("B_full_context", system_b),
     "C": ("C_naive_rag", system_c),
     "D": ("D_volta_memory", system_d),
+    "E": ("E_mcp_agent", system_e),
 }
 
 
