@@ -116,3 +116,28 @@ This document serves as the absolute, watertight execution checklist for the rem
 ### 6.3 Public Benchmark Dataset
 - **Task:** License and publish the eval data.
 - **Details:** Release the synthetic conversations used in Phase 4 as an open-source benchmark dataset for other developers building memory agents.
+
+---
+
+## Phase 7: Final Submission Assets (The Finish Line)
+*Objective: Prepare the physical assets required by Devpost for judging.*
+
+### 7.1 Record the Demo Video
+- **Task:** Execute `06_Demo_Script.md` on camera.
+- **Details:** Record a continuous ~3-minute capture showing the 3-session scenario with the live memory graph decay and voice interface.
+
+### 7.2 Record the Alibaba Cloud Proof Video
+- **Task:** Record a 60-second proof of infrastructure.
+- **Details:** Show the Alibaba Cloud Function Compute / RDS dashboards, execute `deployment_verification.py`, and show a live curl request hitting the deployed backend.
+
+### 7.3 Export Architecture Diagrams
+- **Task:** Convert Mermaid diagrams to images.
+- **Details:** Render the 3 diagrams from `15_Architecture_Diagram_Spec.md` into high-resolution PNGs so they can be embedded directly in the Devpost gallery.
+
+### 7.4 Publish the Technical Blog Post
+- **Task:** Post the journey to a developer blog.
+- **Details:** Take `16_Blog_Post_Draft.md`, publish it (e.g., Medium, Dev.to, or a personal blog), and ensure it is publicly visible to qualify for the Blog Post Prize.
+
+### 7.5 Complete the Devpost Form
+- **Task:** Fill out the actual submission form.
+- **Details:** Ensure all "Built With" tags are selected, the Text Description is pasted in, the video links are added, and Track 1 (MemoryAgent) is explicitly selected. Submit with at least 24 hours to spare.
