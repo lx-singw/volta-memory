@@ -1,64 +1,56 @@
-# Volta Memory
+# Volta Memory Engine 🧠⚡
 
-Persistent, typed, decaying memory for conversational agents — built for the Qwen Cloud Global AI Hackathon (Track 1: MemoryAgent).
+<div align="center">
+  <h3><strong>Qwen Cloud Global AI Hackathon | Track 1: MemoryAgent</strong></h3>
+  <p>A serverless, persistent memory engine that gives AI companions compounding, long-term context.</p>
+</div>
 
-Volta is a South African home-solar energy advisor persona demonstrating cross-session recall, timely forgetting, contradiction handling, and token-budgeted retrieval over a curated Postgres memory store.
+---
 
-## Architecture
+## 🌟 The "Wow" Factor: Premium Solar Concierge
+Volta Memory isn't just a backend API—it's a fully realized product. To demonstrate the power of our memory engine, we built a **Premium Solar Concierge**.
 
-- **Backend:** Python FastAPI — memory engine, Qwen Cloud integration, eval harness
-- **Frontend:** Next.js — chat UI and memory transparency view
-- **Database:** Postgres (local Docker or Alibaba RDS) with pgvector for hybrid retrieval
-- **Deployment:** Alibaba Cloud ECS / Function Compute
+* **Live Force-Graph Memory:** Navigate to the `/memory` route to see the AI's brain in real-time. Memories are rendered as glowing, physics-based nodes. Watch as high-confidence memories burn bright, while outdated or contradicted facts physically shrink and decay over time.
+* **Push-to-Talk Voice Interface:** A zero-latency, highly polished voice interface allows you to speak naturally with Volta, while it reads back responses using premium browser-native TTS.
+* **Compounding Intelligence:** Talk to Volta across multiple sessions. Without being reminded, it will recall your roof size, budget constraints, and energy goals from days prior.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) and [docs/00_Master_Index.md](./docs/00_Master_Index.md).
+## 🏗️ The "How": Engineering & Architecture
+Volta is built entirely on a cutting-edge, serverless, cloud-native stack designed for infinite scale and zero idle costs.
 
-## Quick start
+* **Compute:** Alibaba Cloud Function Compute 3.0 (FC3.0) running a FastAPI backend.
+* **Database:** Alibaba ApsaraDB RDS Serverless (PostgreSQL) leveraging `pgvector` for semantic similarity search.
+* **Intelligence:** Qwen LLMs integrated via Alibaba DashScope.
+* **Frontend:** Next.js 14 Static Export hosted on Alibaba Cloud OSS.
+* **Standards:** Full **Model Context Protocol (MCP)** integration, exposing the memory engine as standard tools for any compliant LLM.
 
+## 📚 Deep Dive Documentation
+We have prepared a comprehensive 16-document suite covering every aspect of this project—from the database schema to our product roadmap. 
+
+**Start Here:**
+* 📖 [Master Index & Table of Contents](docs/Volta%20Memory/00_Master_Index.md)
+* 🚀 [Demo Script (3-Session Scenario)](docs/Volta%20Memory/06_Demo_Script.md)
+* 📐 [Memory System Design & Decay Logic](docs/Volta%20Memory/03_Memory_System_Design.md)
+* 🗺️ [Architecture Diagrams](docs/Volta%20Memory/15_Architecture_Diagram_Spec.md)
+* 💡 [FAQ & One-Page Pitch](docs/Volta%20Memory/11_FAQ_and_One_Pager.md)
+
+*(See the `docs/Volta Memory/` directory for PRDs, Security, Roadmap, and more).*
+
+## 🚀 Getting Started Locally
+
+### 1. Backend (FastAPI + Memory Engine)
 ```bash
-cp .env.example .env
-# Fill in QWEN_API_KEY and DATABASE_URL
-
-# Local Postgres (default)
-docker compose --profile local-db up --build
-
-# Or RDS-first: set DATABASE_URL to Alibaba RDS in .env, then:
-docker compose up --build
+cd backend
+python3 -m pip install -e .
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Backend: http://localhost:8000  
-Frontend: http://localhost:3000  
-API docs: http://localhost:8000/docs
-
-## Apply database schema
-
+### 2. Frontend (Next.js Solar Concierge)
 ```bash
-psql "$DATABASE_URL" -f backend/migrations/001_initial.sql
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:3000 to interact with Volta
 ```
 
-## Run tests
-
-```bash
-cd backend && pip install -e ".[dev]" && pytest
-```
-
-## Eval harness
-
-```bash
-cd backend && python -m eval.run_eval
-```
-
-Results are written to [BENCHMARKS.md](./BENCHMARKS.md).
-
-## Documentation
-
-| Doc | Purpose |
-|-----|---------|
-| [docs/03_Memory_System_Design.md](./docs/03_Memory_System_Design.md) | Core memory design |
-| [docs/04_Database_Schema.md](./docs/04_Database_Schema.md) | SQL schema |
-| [docs/05_API_Reference.md](./docs/05_API_Reference.md) | HTTP API |
-| [docs/09_Environment_Variables.md](./docs/09_Environment_Variables.md) | Full env reference |
-
-## License
-
-MIT — see [LICENSE](./LICENSE).
+---
+*Built with ❤️ for the Qwen Cloud Global AI Hackathon (June 2026).*
