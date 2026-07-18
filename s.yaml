@@ -1,0 +1,50 @@
+# ==============================================================================
+# Alibaba Cloud Serverless Devs (FC 3.0) Configuration
+# ==============================================================================
+edition: 3.0.0
+name: volta-memory-project
+vars:
+  region: "ap-southeast-1"
+
+resources:
+  volta_memory_backend:
+    component: fc3
+    props:
+      region: ${vars.region}
+      functionName: "volta-memory-backend"
+      description: "Volta Memory FastAPI backend server"
+      runtime: "custom.debian10" # Use custom runtime to run uvicorn
+      timeout: 60
+      memorySize: 512
+      cpu: 0.5
+      diskSize: 512
+      code: "./backend"
+      customRuntimeConfig:
+        command:
+          - "python3"
+        args:
+          - "-m"
+          - "uvicorn"
+          - "app.main:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "9000"
+      environmentVariables:
+        APP_ENV: "production"
+        DATABASE_URL: "" # Loaded via environment overrides or s config
+        DATABASE_SSL_MODE: "require"
+        QWEN_API_KEY: "" # Set in FC console or via env inject
+        QWEN_API_BASE_URL: "https://dashscope.aliyuncs.com/api/v1"
+        CORS_ALLOWED_ORIGINS: "*"
+      triggers:
+        - triggerName: http-trigger
+          triggerType: http
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
