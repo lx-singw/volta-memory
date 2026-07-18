@@ -56,8 +56,26 @@ def create_session(
     )
 
 
-@router.post("/sessions/{session_id}/messages", response_model=MessageResponse)
-def post_message(session_id: UUID, body: MessageRequest, persona: str = Query(default="volta")) -> MessageResponse:
+@router.post("/sessions/{session_id}/messages")
+def post_message(
+    session_id: UUID, 
+    body: MessageRequest, 
+    persona: str = Query(default="volta"),
+    stream: bool = Query(default=False)
+):
+    import json
+    from fastapi.responses import StreamingResponse
+    from app.chat.session import send_message_stream
+    
+    if stream:
+        def event_generator():
+            try:
+                for chunk in send_message_stream(session_id, body.message, persona=persona):
+                    yield f"data: {json.dumps({'token': chunk})}\n\n"
+            except ValueError as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     try:
         result = send_message(session_id, body.message, persona=persona)
     except ValueError as exc:

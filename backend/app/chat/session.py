@@ -82,7 +82,7 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
     system_prompt = build_system_prompt(memory_context, persona_template=_persona_prompt(persona))
     messages = _fetch_messages(session_id)
 
-    raw_reply = get_qwen_client().complete(system_prompt, messages)
+    raw_reply = get_qwen_client().complete_with_tools(system_prompt, messages, entity_id=entity_id)
     explain = parse_explain_block(raw_reply)
     reply = explain.user_facing_text
 
@@ -133,6 +133,81 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
         "message_id": str(message_id),
         "known_gaps": memory_context.known_gaps,
     }
+
+
+def send_message_stream(session_id: UUID, user_message: str, persona: str = "volta"):
+    with get_connection() as conn:
+        session_row = conn.execute(
+            "SELECT entity_id FROM conversations WHERE id = %s AND ended_at IS NULL",
+            (session_id,),
+        ).fetchone()
+        if not session_row:
+            raise ValueError("Session not found or already ended")
+
+        entity_id = session_row["entity_id"]
+        
+        from app.memory.priors import seed_population_priors
+        seed_population_priors(entity_id, user_message, session_id)
+        
+        conn.execute(
+            """
+            INSERT INTO messages (id, conversation_id, role, content)
+            VALUES (%s, %s, 'user', %s)
+            """,
+            (uuid4(), session_id, user_message),
+        )
+
+    memory_context = load_context(entity_id, query_context=user_message, persona=persona)
+    system_prompt = build_system_prompt(memory_context, persona_template=_persona_prompt(persona))
+    messages = _fetch_messages(session_id)
+
+    full_response_content = []
+    for chunk in get_qwen_client().complete_stream(system_prompt, messages):
+        full_response_content.append(chunk)
+        yield chunk
+
+    reply = "".join(full_response_content)
+    explain = parse_explain_block(reply)
+    user_reply = explain.user_facing_text
+
+    context_snapshot = [
+        {
+            "memory_id": str(item.memory.id),
+            "observation": item.memory.observation,
+            "effective_confidence": round(item.effective_confidence, 4),
+            "tier": item.tier.value,
+        }
+        for item in memory_context.packed_memories
+        if item.memory.id
+    ]
+
+    message_id = uuid4()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO messages (id, conversation_id, role, content, memory_context_used)
+            VALUES (%s, %s, 'assistant', %s, %s)
+            """,
+            (message_id, session_id, user_reply, json.dumps(context_snapshot)),
+        )
+
+        if explain.referenced_memory_ids:
+            conn.execute(
+                """
+                INSERT INTO explain_traces (
+                    id, message_id, referenced_memory_ids,
+                    primary_influence_memory_id, confidence_tier_choice, counterfactual
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    uuid4(),
+                    message_id,
+                    explain.referenced_memory_ids,
+                    explain.primary_influence_memory_id,
+                    explain.confidence_tier_choice,
+                    explain.counterfactual,
+                ),
+            )
 
 
 def end_session(session_id: UUID) -> dict:
