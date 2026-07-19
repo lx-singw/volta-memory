@@ -16,8 +16,9 @@ Volta Memory isn't just a backend API—it's a fully realized product. To demons
 
 ## 🌐 Deployed Live Demos
 
-* **Live Concierge Web App:** [https://volta-memory-frontend-static.oss-ap-southeast-1.aliyuncs.com/index.html](https://volta-memory-frontend-static.oss-ap-southeast-1.aliyuncs.com/index.html)
-* **Live Memory Engine API (FC):** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health)
+* **Live Concierge Web App:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run)
+* **Live Physics Force-Graph Memory View:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory)
+* **Live Backend API Health:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health)
 
 ## 🏗️ The "How": Engineering & Architecture
 Volta is built entirely on a cutting-edge, serverless, cloud-native stack designed for infinite scale and zero idle costs.

@@ -7,6 +7,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from app.api.routes_chat import router as chat_router
 from app.api.routes_eval import router as eval_router
@@ -48,3 +51,24 @@ app.include_router(eval_router)
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "database": check_database()}
+
+
+# Serve static frontend files if bundled
+static_dir = Path(__file__).resolve().parent / "static"
+if static_dir.exists():
+    app.mount("/_next", StaticFiles(directory=str(static_dir / "_next")), name="next_static")
+
+    @app.get("/")
+    def serve_index():
+        return FileResponse(str(static_dir / "index.html"))
+
+    @app.get("/memory")
+    def serve_memory():
+        return FileResponse(str(static_dir / "memory.html"))
+
+    @app.get("/{file_name:path}")
+    def serve_file(file_name: str):
+        target = static_dir / file_name
+        if target.exists() and target.is_file():
+            return FileResponse(str(target))
+        return FileResponse(str(static_dir / "index.html"))
