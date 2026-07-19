@@ -38,6 +38,8 @@ This document points to the submitted architecture diagram and summarizes the sy
 
 ## Diagram asset
 
-Add the hackathon architecture diagram image to this repo and link it here before submission.
+The architecture diagram is available in the repository at [docs/architecture.svg](file:///wsl.localhost/Ubuntu/home/lx_singw/projects/volta-memory/docs/architecture.svg).
 
-Full design: [docs/03_Memory_System_Design.md](./docs/03_Memory_System_Design.md)
+![Volta Architecture](docs/architecture.svg)
+
+Full design: [docs/03_Memory_System_Design.md](file:///wsl.localhost/Ubuntu/home/lx_singw/projects/volta-memory/docs/03_Memory_System_Design.md)
