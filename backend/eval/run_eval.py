@@ -154,7 +154,10 @@ def execute_chronological_scenario(
         if num_sessions == 1:
             timestamps = [now_today]
         elif num_sessions == 2:
-            timestamps = [now_today - timedelta(days=3), now_today]
+            if persona_id == "persona_17_decay_irrelevant":
+                timestamps = [now_today - timedelta(days=90), now_today]
+            else:
+                timestamps = [now_today - timedelta(days=3), now_today]
         else:
             timestamps = [now_today - timedelta(days=21), now_today - timedelta(days=3), now_today]
             
@@ -292,6 +295,7 @@ def main() -> dict:
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true", help="Run in smoke test mode (persona 15, 1 replicate)")
+    parser.add_argument("--persona", type=str, default=None, help="Run only a specific persona by ID")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -302,7 +306,11 @@ def main() -> dict:
     variants = [v for v in variants if v in SYSTEMS and v != "E"]
     
     personas = _load_personas(persona_dir)
-    if args.smoke:
+    if args.persona:
+        personas = [p for p in personas if p.get("id") == args.persona]
+        replicates_count = 1
+        print(f"[Single Persona Mode] Loaded {args.persona}. Running variants: {variants} with 1 replicate.")
+    elif args.smoke:
         personas = [p for p in personas if p.get("id") == "persona_15_correction_bill"]
         replicates_count = 1
         print(f"[Smoke Test Mode] Loaded persona 15. Running variants: {variants} with 1 replicate.")

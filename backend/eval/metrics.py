@@ -129,12 +129,14 @@ def evaluate_assertions(
         id_to_value = {}
         for a in assertions:
             aid = a.get("id")
-            if aid:
-                id_to_value[aid] = a.get("value")
+            val = a.get("value")
+            if aid and val is not None:
+                id_to_value[aid] = val
 
         for assertion in assertions:
             assert_type = assertion.get("type")
-            target_val = normalize_value(assertion.get("value") or assertion.get("id"))
+            raw_target = assertion.get("value") or id_to_value.get(assertion.get("id")) or assertion.get("id")
+            target_val = normalize_value(raw_target)
             
             if assert_type == "memory_stored":
                 results["db_stored_total"] += 1
