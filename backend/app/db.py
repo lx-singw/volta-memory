@@ -40,9 +40,27 @@ def get_pool() -> ConnectionPool:
 
 @contextmanager
 def get_connection() -> Generator[Connection, None, None]:
+    import time
+    from psycopg_pool import PoolTimeout
+    
     pool = get_pool()
-    with pool.connection() as conn:
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            ctx = pool.connection()
+            conn = ctx.__enter__()
+            break
+        except PoolTimeout as e:
+            if attempt == max_retries - 1:
+                logger.error(f"Failed to acquire db connection from pool after {max_retries} attempts: {e}")
+                raise
+            logger.warning(f"DB connection pool timeout: {e}. Retrying in 1.0s...")
+            time.sleep(1.0)
+            
+    try:
         yield conn
+    finally:
+        ctx.__exit__(None, None, None)
 
 
 def close_pool() -> None:

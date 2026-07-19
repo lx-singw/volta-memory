@@ -79,6 +79,25 @@ def _record_call(model: str, input_tokens: int, output_tokens: int, latency_ms: 
         ))
 
 
+def _post_with_retry(client: httpx.Client, url: str, **kwargs) -> httpx.Response:
+    import time
+    from httpx import ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError
+    
+    max_retries = 5
+    delay = 1.0  # seconds
+    for attempt in range(max_retries):
+        try:
+            response = client.post(url, **kwargs)
+            return response
+        except (ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError) as e:
+            if attempt == max_retries - 1:
+                logger.error(f"HTTP post failed after {max_retries} attempts: {e}")
+                raise
+            logger.warning(f"HTTP post transient error: {e}. Retrying in {delay}s...")
+            time.sleep(delay)
+            delay *= 2.0
+
+
 class QwenClient:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -109,7 +128,7 @@ class QwenClient:
 
         t0 = time.monotonic()
         with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = client.post(url, json=payload, headers=headers)
+            response = _post_with_retry(client, url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -156,7 +175,7 @@ class QwenClient:
 
         t0 = time.monotonic()
         with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = client.post(url, json=payload, headers=headers)
+            response = _post_with_retry(client, url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -214,7 +233,7 @@ class QwenClient:
 
         t0 = time.monotonic()
         with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = client.post(url, json=payload, headers=headers)
+            response = _post_with_retry(client, url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -266,27 +285,44 @@ class QwenClient:
         stream_usage = {}
         last_req_id = None
         last_len = 0
-        with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            with client.stream("POST", url, json=payload, headers=headers) as response:
-                response.raise_for_status()
-                last_req_id = response.headers.get("x-request-id")
-                for line in response.iter_lines():
-                    if line.startswith("data:"):
-                        try:
-                            data = json.loads(line[5:])
-                            usage = data.get("usage", {})
-                            if usage:
-                                stream_usage = usage
-                            content = data["output"]["choices"][0]["message"]["content"]
-                            if content:
-                                if len(content) > last_len:
-                                    delta = content[last_len:]
-                                    last_len = len(content)
-                                    yield delta
-                                else:
-                                    yield content
-                        except Exception:
-                            continue
+        
+        import time as time_mod
+        from httpx import ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError
+        max_retries = 5
+        delay = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
+                    with client.stream("POST", url, json=payload, headers=headers) as response:
+                        response.raise_for_status()
+                        last_req_id = response.headers.get("x-request-id")
+                        for line in response.iter_lines():
+                            if line.startswith("data:"):
+                                try:
+                                    data = json.loads(line[5:])
+                                    usage = data.get("usage", {})
+                                    if usage:
+                                        stream_usage = usage
+                                    content = data["output"]["choices"][0]["message"]["content"]
+                                    if content:
+                                        if len(content) > last_len:
+                                            delta = content[last_len:]
+                                            last_len = len(content)
+                                            yield delta
+                                        else:
+                                            yield content
+                                except Exception:
+                                    continue
+                break
+            except (ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError) as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"HTTP stream failed after {max_retries} attempts: {e}")
+                    raise
+                logger.warning(f"HTTP stream transient error: {e}. Retrying in {delay}s...")
+                time_mod.sleep(delay)
+                delay *= 2.0
+
         latency = int((time.monotonic() - t0) * 1000)
         input_toks = stream_usage.get("input_tokens", 0)
         output_toks = stream_usage.get("output_tokens", 0)
@@ -349,7 +385,7 @@ class QwenClient:
 
             t0 = time.monotonic()
             with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-                response = client.post(url, json=payload, headers=headers)
+                response = _post_with_retry(client, url, json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json()
             latency = int((time.monotonic() - t0) * 1000)

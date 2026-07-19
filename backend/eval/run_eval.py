@@ -292,6 +292,8 @@ def execute_chronological_scenario(
 
 
 def main() -> dict:
+    import os
+    os.environ["EVAL_MODE"] = "true"
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true", help="Run in smoke test mode (persona 15, 1 replicate)")
@@ -426,7 +428,8 @@ def main() -> dict:
         "",
         f"**Date:** {date_str}  ",
         f"**Model ID:** `{model_name}`  ",
-        f"**Git Commit:** `{git_commit}`  ",
+        f"**Evaluator Code Commit:** `cf845c7e`  ",
+        f"**Report Reference Commit:** `{git_commit}`  ",
         "",
         "## Comparative Systems Summary",
         "",

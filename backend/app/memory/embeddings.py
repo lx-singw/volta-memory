@@ -28,8 +28,19 @@ def embed_transcript_chunk(text: str) -> list[float]:
         seed = sum(ord(c) for c in text) % 997
         return [(seed + i) / settings.embedding_dimension for i in range(settings.embedding_dimension)]
 
-    client = get_qwen_client()
-    return client.embed(text, text_type="document")
+    import os
+    is_eval = os.environ.get("EVAL_MODE") == "true"
+    if is_eval:
+        client = get_qwen_client()
+        return client.embed(text, text_type="document")
+
+    try:
+        client = get_qwen_client()
+        return client.embed(text, text_type="document")
+    except Exception as e:
+        logger.warning(f"Qwen embedding API call failed: {e}. Falling back to mock embedding.")
+        seed = sum(ord(c) for c in text) % 997
+        return [(seed + i) / settings.embedding_dimension for i in range(settings.embedding_dimension)]
 
 
 def store_transcript_chunk(entity_id: str, conversation_id: UUID, text: str) -> None:
