@@ -1,18 +1,18 @@
 # Volta Memory — Redesigned Benchmark Results
 
-**Date:** 2026-07-19 18:15:10 UTC  
+**Date:** 2026-07-19 18:24:58 UTC  
 **Model ID:** `qwen-max`  
 **Evaluator Code Commit:** `cf845c7e`  
-**Report Reference Commit:** `1e44d24d`  
+**Report Reference Commit:** `4f6ee78a`  
 
 ## Comparative Systems Summary
 
 | System | Recall Accuracy | Correction Accuracy | Forgetting Accuracy | Downstream Quality | Online Latency P50 (ms) | Online Cost Avg ($) | Offline Latency P50 (ms) | Offline Cost Avg ($) | Sample runs |
 |---|---|---|---|---|---|---|---|---|---|
-| A_no_memory | 0.1364 (9/66) | 0.0000 (0/6) | 0.7917 (19/24) | 0.3457 (28/81) | 5500 | $0.001542 | 0 | $0.000000 | 33 |
-| B_full_context | 1.0000 (66/66) | 0.0000 (0/6) | 0.2500 (6/24) | 0.8519 (69/81) | 6856 | $0.001813 | 0 | $0.000000 | 33 |
-| C_naive_rag | 0.9091 (60/66) | 0.0000 (0/6) | 0.1667 (4/24) | 0.7901 (64/81) | 10573 | $0.001639 | 0 | $0.000000 | 33 |
-| D_volta_memory | 0.8333 (55/66) | 0.5000 (3/6) | 0.6667 (16/24) | 0.8148 (66/81) | 9338 | $0.002010 | 22694 | $0.007148 | 33 |
+| A_no_memory | 0.1515 (10/66) | 0.0000 (0/6) | 0.8333 (20/24) | 0.3704 (30/81) | 6289 | $0.001564 | 0 | $0.000000 | 33 |
+| B_full_context | 1.0000 (66/66) | 0.0000 (0/6) | 0.2500 (6/24) | 0.8642 (70/81) | 5885 | $0.001911 | 0 | $0.000000 | 33 |
+| C_naive_rag | 0.9091 (60/66) | 0.0000 (0/6) | 0.1667 (4/24) | 0.7654 (62/81) | 13042 | $0.001722 | 0 | $0.000000 | 33 |
+| D_volta_memory | 0.8485 (56/66) | 0.5000 (3/6) | 0.7500 (18/24) | 0.8395 (68/81) | 10329 | $0.002037 | 25752 | $0.006808 | 33 |
 
 ## Database Lifecycle Verification
 
@@ -21,4 +21,4 @@
 | A_no_memory | N/A | N/A | N/A |
 | B_full_context | N/A | N/A | N/A |
 | C_naive_rag | N/A | N/A | N/A |
-| D_volta_memory | 0.8947 (51/57) | 1.0000 (6/6) | 1.0000 (3/3) |
+| D_volta_memory | 0.8596 (49/57) | 1.0000 (6/6) | 0.3333 (1/3) |
