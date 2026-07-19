@@ -29,7 +29,8 @@ def _persona_prompt(persona: str) -> str:
 
 def start_session(entity_id: str, persona: str = "volta") -> Session:
     session_id = uuid4()
-    now = datetime.now(timezone.utc)
+    from app.utils.clock import get_now
+    now = get_now()
 
     with get_connection() as conn:
         conn.execute(
@@ -92,6 +93,7 @@ def send_message(session_id: UUID, user_message: str, persona: str = "volta") ->
             "observation": item.memory.observation,
             "effective_confidence": round(item.effective_confidence, 4),
             "tier": item.tier.value,
+            "evidence": item.memory.evidence,
         }
         for item in memory_context.packed_memories
         if item.memory.id
@@ -184,6 +186,7 @@ def send_message_stream(session_id: UUID, user_message: str, persona: str = "vol
             "observation": item.memory.observation,
             "effective_confidence": round(item.effective_confidence, 4),
             "tier": item.tier.value,
+            "evidence": item.memory.evidence,
         }
         for item in memory_context.packed_memories
         if item.memory.id
@@ -220,7 +223,8 @@ def send_message_stream(session_id: UUID, user_message: str, persona: str = "vol
 
 def end_session(session_id: UUID) -> dict:
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    from app.utils.clock import get_now
+    now = get_now()
 
     with get_connection() as conn:
         session_row = conn.execute(
@@ -263,12 +267,12 @@ def end_session(session_id: UUID) -> dict:
                 draft.base_confidence = min(draft.base_confidence, result.capped_confidence)
 
         from app.memory.contradiction import classify_relationship
-        rel_info = classify_relationship(draft.observation, existing)
+        rel_info = classify_relationship(draft.observation, existing, new_memory_type=draft.memory_type)
         rel = rel_info.get("relationship")
         target_mem = rel_info.get("target_memory")
 
         if rel == "contradicts" and target_mem and target_mem.id:
-            _, new_memory = resolve(target_mem, draft.observation, entity_id, session_id)
+            _, new_memory = resolve(target_mem, draft, entity_id, session_id)
             written.append(new_memory)
             continue
         elif rel == "reinforces" and target_mem and target_mem.id:

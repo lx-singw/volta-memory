@@ -5,17 +5,40 @@ sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Prioritises backup duration over bill savings."
+    content: Hi, I'm looking for a solar system. Load-shedding is getting unbearable
+      in my area.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: I completely understand. To advise you, what is your average monthly
+      electricity bill, and is your main priority saving money or having backup power
+      during outages?
+  - role: user
+    content: My average bill is R3,200. Sashing the bill would be great, but honestly
+      my primary goal is backup power to keep the lights and internet running during
+      outages.
+  - role: assistant
+    content: Got it. Having backup power is the main priority for your R3,200 bill.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: What size battery do you recommend for me?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - backup
+  - R3,200
+  should_not_recall: []
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - backup
+    - R3,200
+    must_not_reference: []
+  assertions:
+  - type: memory_stored
+    id: backup_priority
+    value: backup
+  - type: memory_stored
+    id: monthly_bill
+    value: '3200'
+  - type: response_uses
+    id: monthly_bill
+    value: '3200'

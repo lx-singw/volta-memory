@@ -38,7 +38,8 @@ def _stale_candidates(memories: list[Memory], now: datetime) -> list[Memory]:
 
 
 def run_consolidation(entity_id: str) -> ConsolidationResult:
-    now = datetime.now(timezone.utc)
+    from app.utils.clock import get_now
+    now = get_now()
     memories = list_memories(entity_id, include_superseded=False)
     stale = _stale_candidates(memories, now)
 

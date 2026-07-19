@@ -30,3 +30,11 @@ out/
 *.log
 .coverage
 htmlcov/
+
+# Serverless Devs & Build Outputs
+.s/
+backend/python/
+
+# Evaluation outputs
+backend/eval/checkpoint.json
+backend/eval/run_results.jsonl

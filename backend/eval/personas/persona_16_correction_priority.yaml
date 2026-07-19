@@ -1,21 +1,50 @@
 id: persona_16_correction_priority
 entity_id: eval-entity-16
-theme: Changes priority from savings to backup
+theme: Changes priority from green energy to cost savings
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Changes priority from savings to backup."
+    content: Hi, I want solar because I care about the environment and want to reduce
+      my carbon footprint.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: That's wonderful, prioritizing environmental impact.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
+    content: Actually, I've had to review my budget, and my priority now is purely
+      cost savings and reducing my bill, not environmental impact.
   - role: assistant
-    content: I'll reference what I remember from last time.
+    content: Understood. Shifting primary priority to cost savings.
+- session_number: 3
+  messages:
+  - role: user
+    content: How should we design my solar project priority?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: true
-  adversarial: false
+  should_recall:
+  - cost savings
+  should_not_recall:
+  - carbon footprint
+  - environment
+  - green
+  should_correct:
+  - old: environment
+    new: cost savings
+  downstream_quality:
+    must_reference:
+    - cost savings
+    must_not_reference:
+    - carbon footprint
+    - environment
+    - green
+  assertions:
+  - type: memory_stored
+    id: priority_old
+    value: environment
+  - type: superseded
+    old: priority_old
+    new: priority_new
+    value: cost savings
+  - type: response_uses
+    id: priority_new
+    value: cost savings

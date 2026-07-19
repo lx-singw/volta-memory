@@ -23,15 +23,13 @@ class TranscriptChunk:
 
 def embed_transcript_chunk(text: str) -> list[float]:
     """Call Qwen Cloud embedding API to embed the given text."""
-    try:
-        client = get_qwen_client()
-        return client.embed(text, text_type="document")
-    except Exception as e:
-        logger.error(f"Error calling Qwen embedding API: {e}")
-        # Fallback deterministic mock embedding
-        settings = get_settings()
+    settings = get_settings()
+    if not settings.qwen_api_key:
         seed = sum(ord(c) for c in text) % 997
         return [(seed + i) / settings.embedding_dimension for i in range(settings.embedding_dimension)]
+
+    client = get_qwen_client()
+    return client.embed(text, text_type="document")
 
 
 def store_transcript_chunk(entity_id: str, conversation_id: UUID, text: str) -> None:
@@ -40,10 +38,10 @@ def store_transcript_chunk(entity_id: str, conversation_id: UUID, text: str) -> 
     if tokens < 5:
         return # Skip very short/empty transcript chunks
 
-    try:
+    settings = get_settings()
+    if settings.qwen_api_key:
         embedding = embed_transcript_chunk(text)
         vector_str = f"[{','.join(map(str, embedding))}]"
-        
         with get_connection() as conn:
             conn.execute(
                 """
@@ -52,8 +50,20 @@ def store_transcript_chunk(entity_id: str, conversation_id: UUID, text: str) -> 
                 """,
                 (entity_id, conversation_id, text, vector_str),
             )
-    except Exception as e:
-        logger.error(f"Failed to store transcript chunk in database: {e}")
+    else:
+        try:
+            embedding = embed_transcript_chunk(text)
+            vector_str = f"[{','.join(map(str, embedding))}]"
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO transcript_chunks (entity_id, conversation_id, text, embedding)
+                    VALUES (%s, %s, %s, %s::vector)
+                    """,
+                    (entity_id, conversation_id, text, vector_str),
+                )
+        except Exception as e:
+            logger.error(f"Failed to store transcript chunk in database: {e}")
 
 
 def search_fallback(

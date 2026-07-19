@@ -1,21 +1,37 @@
 id: persona_18_reinforced_preference
 entity_id: eval-entity-18
-theme: Repeats backup preference across sessions
+theme: Reinforced preference should not decay
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Repeats backup preference across sessions."
+    content: Hi, I want solar. Having a backup battery is absolutely critical to me.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: Understood. Backup battery is critical.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
+    content: Just following up. Sizing-wise, remember that backup power is my main
+      focus.
   - role: assistant
-    content: I'll reference what I remember from last time.
+    content: Yes, I have noted backup as your main focus.
+- session_number: 3
+  messages:
+  - role: user
+    content: What is my main requirement?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - backup
+  should_not_recall: []
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - backup
+    must_not_reference: []
+  assertions:
+  - type: memory_stored
+    id: backup_requirement
+    value: backup
+  - type: response_uses
+    id: backup_requirement
+    value: backup

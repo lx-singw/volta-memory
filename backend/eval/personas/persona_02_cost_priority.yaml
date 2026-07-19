@@ -1,21 +1,45 @@
 id: persona_02_cost_priority
 entity_id: eval-entity-02
-theme: Price-sensitive, wants lowest upfront cost
+theme: Prioritises cost savings over backup
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Price-sensitive, wants lowest upfront cost."
+    content: Hi, I'm looking to install solar panels. Electricity prices are sky-high.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: I understand. What is your average monthly electricity bill, and do you
+      care more about backup power or bill savings?
+  - role: user
+    content: My bill is R3,500. I want to maximize my financial savings. I don't really
+      care about backup batteries, just want to cut the bill.
+  - role: assistant
+    content: Understood. Bill savings are your primary motivation.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: How much would I save with a standard system?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - savings
+  - R3,500
+  should_not_recall:
+  - battery
+  - backup
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - savings
+    - R3,500
+    must_not_reference:
+    - battery
+    - backup
+  assertions:
+  - type: memory_stored
+    id: cost_priority
+    value: savings
+  - type: memory_stored
+    id: monthly_bill
+    value: '3500'
+  - type: response_uses
+    id: monthly_bill
+    value: '3500'

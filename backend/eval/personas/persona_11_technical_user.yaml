@@ -1,21 +1,36 @@
 id: persona_11_technical_user
 entity_id: eval-entity-11
-theme: Understands kW vs kWh
+theme: Exact specifications
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Understands kW vs kWh."
+    content: I'm looking for a system with a Sunsynk 8kW hybrid inverter and a 10.65kWh
+      battery.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: Noted Sunsynk 8kW inverter and 10.65kWh battery.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: What exact specs did I specify?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - Sunsynk 8kW
+  - 10.65kWh
+  should_not_recall: []
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - Sunsynk 8kW
+    - 10.65kWh
+    must_not_reference: []
+  assertions:
+  - type: memory_stored
+    id: inverter_spec
+    value: Sunsynk 8kW
+  - type: memory_stored
+    id: battery_spec
+    value: 10.65kWh
+  - type: response_uses
+    id: inverter_spec
+    value: Sunsynk 8kW

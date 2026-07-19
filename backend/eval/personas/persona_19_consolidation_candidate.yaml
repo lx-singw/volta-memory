@@ -5,9 +5,9 @@ sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Many low-confidence stale facts."
+    content: Session 1 opener — Many low-confidence stale facts.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: Thanks for sharing — tell me more about your situation.
 - session_number: 2
   messages:
   - role: user
@@ -19,3 +19,7 @@ ground_truth:
   - session 1
   should_supersede: false
   adversarial: false
+  assertions:
+  - type: memory_stored
+    id: session_info
+    value: session 1

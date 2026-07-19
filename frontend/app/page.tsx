@@ -5,7 +5,17 @@ import ChatMessage from "./components/ChatMessage";
 import SessionControls from "./components/SessionControls";
 import { Mic, Send, Sun, BatteryCharging } from "lucide-react";
 
-type ChatEntry = { role: "user" | "assistant"; content: string; memoryContext?: unknown[] };
+type ChatEntry = {
+  role: "user" | "assistant";
+  content: string;
+  memoryContext?: unknown[];
+  explainTrace?: {
+    referenced_memory_ids: string[];
+    primary_influence_memory_id: string | null;
+    confidence_tier_choice: string | null;
+    counterfactual: string | null;
+  };
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const ENTITY_ID = process.env.NEXT_PUBLIC_DEMO_ENTITY_ID || "demo-consumer-1";

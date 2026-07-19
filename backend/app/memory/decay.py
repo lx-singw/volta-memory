@@ -12,8 +12,10 @@ from app.memory.stability import retention_strength, is_cross_session_reinforcem
 from app.memory.importance import effective_lambda
 
 
+from app.utils.clock import get_now
+
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return get_now()
 
 
 def apply_decay(memory: Memory, now: datetime | None = None) -> float:

@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" width="100%" height="100%" style="background-color: #020617; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+  <!-- Definitions for gradients and shadows -->
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#facc15" />
+    </linearGradient>
+    <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Title & Frame -->
+  <text x="30" y="45" font-size="24" font-weight="700" fill="#f8fafc" letter-spacing="-0.02em">Volta Memory Engine</text>
+  <text x="30" y="70" font-size="14" font-weight="500" fill="#94a3b8">Verifiable memory-quality layer for long-term agent context</text>
+
+  <!-- Connectors / Paths -->
+  <g stroke="#334155" stroke-width="2" fill="none" opacity="0.6">
+    <!-- Frontend -> Backend -->
+    <path d="M 190 190 L 320 190" marker-end="url(#arrow)" />
+    <!-- Backend -> DB -->
+    <path d="M 430 250 L 430 480" />
+    <!-- Backend -> Qwen -->
+    <path d="M 540 190 L 730 190" />
+    <!-- MCP -> Backend -->
+    <path d="M 190 320 L 320 220" />
+  </g>
+
+  <!-- Marker Definition -->
+  <svg>
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+      </marker>
+    </defs>
+  </svg>
+
+  <!-- 1. Frontend Layer -->
+  <g transform="translate(30, 130)" filter="url(#shadow)">
+    <rect width="160" height="90" rx="8" fill="url(#boxGrad)" stroke="#38bdf8" stroke-width="1.5" />
+    <text x="80" y="35" fill="#f8fafc" font-size="14" font-weight="600" text-anchor="middle">Next.js Frontend</text>
+    <text x="80" y="55" fill="#64748b" font-size="11" text-anchor="middle">hosted on Alibaba OSS</text>
+    <rect x="25" y="65" width="110" height="16" rx="4" fill="#0c4a6e" />
+    <text x="80" y="77" fill="#38bdf8" font-size="10" font-weight="600" text-anchor="middle">Solar Concierge UI</text>
+  </g>
+
+  <!-- 2. MCP Server Gateway -->
+  <g transform="translate(30, 260)" filter="url(#shadow)">
+    <rect width="160" height="90" rx="8" fill="url(#boxGrad)" stroke="#c084fc" stroke-width="1.5" />
+    <text x="80" y="35" fill="#f8fafc" font-size="14" font-weight="600" text-anchor="middle">MCP Server</text>
+    <text x="80" y="55" fill="#64748b" font-size="11" text-anchor="middle">Standard over stdio</text>
+    <rect x="25" y="65" width="110" height="16" rx="4" fill="#4c1d95" />
+    <text x="80" y="77" fill="#c084fc" font-size="10" font-weight="600" text-anchor="middle">get_memory_context</text>
+  </g>
+
+  <!-- 3. Deployed Backend (FC 3.0) -->
+  <g transform="translate(320, 130)" filter="url(#shadow)">
+    <rect width="220" height="120" rx="8" fill="url(#boxGrad)" stroke="#3b82f6" stroke-width="2" />
+    <rect x="-1" y="-1" width="60" height="18" rx="4" fill="#3b82f6" />
+    <text x="29" y="12" fill="#f8fafc" font-size="9" font-weight="700" text-anchor="middle">FASTAPI</text>
+    <text x="110" y="40" fill="#f8fafc" font-size="16" font-weight="700" text-anchor="middle">FastAPI Backend</text>
+    <text x="110" y="60" fill="#94a3b8" font-size="11" text-anchor="middle">Alibaba FC 3.0 Serverless</text>
+    <path d="M 20 80 L 200 80" stroke="#334155" stroke-width="1" />
+    <text x="110" y="100" fill="#38bdf8" font-size="11" font-weight="600" text-anchor="middle">Memory Engine Pipeline</text>
+  </g>
+
+  <!-- 4. Memory Pipeline Detail Box -->
+  <g transform="translate(250, 290)" filter="url(#shadow)">
+    <rect width="360" height="170" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1.5" />
+    <text x="180" y="25" fill="#94a3b8" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0.05em">COGNITIVE LIFECYCLE PIPELINE</text>
+    
+    <!-- Extraction -->
+    <g transform="translate(20, 45)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1" />
+      <text x="45" y="24" fill="#38bdf8" font-size="11" font-weight="600" text-anchor="middle">1. Extraction</text>
+    </g>
+    <!-- Contradiction -->
+    <g transform="translate(135, 45)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#facc15" stroke-width="1" />
+      <text x="45" y="24" fill="#facc15" font-size="11" font-weight="600" text-anchor="middle">2. Revision</text>
+    </g>
+    <!-- Importance -->
+    <g transform="translate(250, 45)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#c084fc" stroke-width="1" />
+      <text x="45" y="24" fill="#c084fc" font-size="11" font-weight="600" text-anchor="middle">3. Importance</text>
+    </g>
+    <!-- Decay -->
+    <g transform="translate(20, 105)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#f87171" stroke-width="1" />
+      <text x="45" y="24" fill="#f87171" font-size="11" font-weight="600" text-anchor="middle">4. Decay</text>
+    </g>
+    <!-- Retrieval -->
+    <g transform="translate(135, 105)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#4ade80" stroke-width="1" />
+      <text x="45" y="24" fill="#4ade80" font-size="11" font-weight="600" text-anchor="middle">5. Retrieval</text>
+    </g>
+    <!-- Explain -->
+    <g transform="translate(250, 105)">
+      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#2dd4bf" stroke-width="1" />
+      <text x="45" y="24" fill="#2dd4bf" font-size="11" font-weight="600" text-anchor="middle">6. Explain</text>
+    </g>
+
+    <!-- Connectors inside pipeline -->
+    <path d="M 110 65 L 135 65" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
+    <path d="M 225 65 L 250 65" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
+    <path d="M 110 125 L 135 125" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
+    <path d="M 225 125 L 250 125" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
+  </g>
+
+  <!-- 5. Database Layer (Postgres + pgvector) -->
+  <g transform="translate(320, 490)" filter="url(#shadow)">
+    <rect width="220" height="110" rx="8" fill="url(#boxGrad)" stroke="#10b981" stroke-width="1.5" />
+    <text x="110" y="30" fill="#f8fafc" font-size="15" font-weight="700" text-anchor="middle">ApsaraDB RDS</text>
+    <text x="110" y="50" fill="#94a3b8" font-size="11" text-anchor="middle">PostgreSQL Serverless</text>
+    <rect x="20" y="65" width="85" height="20" rx="4" fill="#064e3b" />
+    <text x="62" y="78" fill="#10b981" font-size="10" font-weight="700" text-anchor="middle">pgvector</text>
+    <rect x="115" y="65" width="85" height="20" rx="4" fill="#064e3b" />
+    <text x="157" y="78" fill="#10b981" font-size="10" font-weight="700" text-anchor="middle">Evidence JSONB</text>
+  </g>
+
+  <!-- 6. Qwen Cloud Inference (DashScope) -->
+  <g transform="translate(730, 130)" filter="url(#shadow)">
+    <rect width="220" height="120" rx="8" fill="url(#boxGrad)" stroke="#facc15" stroke-width="2" />
+    <rect x="-1" y="-1" width="80" height="18" rx="4" fill="#facc15" />
+    <text x="40" y="12" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">INFERENCE</text>
+    <text x="110" y="40" fill="#f8fafc" font-size="16" font-weight="700" text-anchor="middle">Qwen Cloud</text>
+    <text x="110" y="60" fill="#94a3b8" font-size="11" text-anchor="middle">DashScope LLM API</text>
+    
+    <path d="M 20 75 L 200 75" stroke="#334155" stroke-width="1" />
+    
+    <text x="110" y="92" fill="#facc15" font-size="10" font-weight="600" text-anchor="middle">qwen-max (Inference &amp; Check)</text>
+    <text x="110" y="108" fill="#facc15" font-size="10" font-weight="600" text-anchor="middle">text-embedding-v2</text>
+  </g>
+</svg>

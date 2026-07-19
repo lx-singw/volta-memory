@@ -24,27 +24,39 @@ def main() -> int:
         print("Error: DATABASE_URL not set in .env")
         return 1
         
-    migrations_sql_path = repo_root / "backend" / "migrations" / "001_initial.sql"
-    if not migrations_sql_path.exists():
-        print(f"Error: Migrations script not found at {migrations_sql_path}")
+    migrations_dir = repo_root / "backend" / "migrations"
+    migration_files = sorted(migrations_dir.glob("*.sql"))
+    if not migration_files:
+        print(f"Error: No migrations found in {migrations_dir}")
         return 1
-        
-    print(f"Reading migrations from {migrations_sql_path.name}...")
-    with open(migrations_sql_path, "r", encoding="utf-8") as f:
-        sql = f.read()
-        
+
     print("Connecting to database...")
     try:
+        from psycopg.errors import DuplicateObject, DuplicateColumn, DuplicateTable, UniqueViolation
         # Use autocommit=True because CREATE EXTENSION cannot run in a transaction block
         with psycopg.connect(db_url, autocommit=True) as conn:
-            with conn.cursor() as cur:
-                print("Applying schema migrations...")
-                cur.execute(sql)
-                print("[SUCCESS] Migrations applied successfully!")
+            for file_path in migration_files:
+                print(f"Applying migration: {file_path.name}...")
+                with open(file_path, "r", encoding="utf-8") as f:
+                    sql = f.read()
+                
+                # Split SQL statements by semicolon and execute them one by one to avoid halting on a single duplicate constraint
+                # Simple parsing by semicolon
+                statements = [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
+                with conn.cursor() as cur:
+                    for stmt in statements:
+                        try:
+                            cur.execute(stmt)
+                        except (DuplicateObject, DuplicateColumn, DuplicateTable, UniqueViolation) as e:
+                            print(f"  [WARNING] Handled duplicate in {file_path.name}: {e}")
+                        except Exception as e:
+                            print(f"  [ERROR] Statement failed: {stmt[:60]}... Error: {e}")
+                            raise e
+            print("[SUCCESS] All migrations applied successfully!")
     except Exception as e:
         print(f"[ERROR] Failed to run migrations: {e}")
         return 1
-        
+
     return 0
 
 if __name__ == "__main__":

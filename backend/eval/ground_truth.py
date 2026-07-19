@@ -32,13 +32,14 @@ def expected_recall(persona_id: str) -> list[str]:
     return _expectations.get(persona_id, [])
 
 
-def expected_superseded(persona_id: str) -> list[str]:
-    return []
-
-
 def load_persona_expectations(persona: dict[str, Any]) -> dict[str, Any]:
-    persona_id = persona.get("id", "")
+    gt = persona.get("ground_truth", {})
     return {
-        "recall": expected_recall(persona_id),
-        "superseded": expected_superseded(persona_id),
+        "recall": gt.get("should_recall", gt.get("should_recall_in_session_2", [])),
+        "should_not_recall": gt.get("should_not_recall", []),
+        "should_correct": gt.get("should_correct", []),
+        "should_forget": gt.get("should_forget", []),
+        "downstream_quality": gt.get("downstream_quality", {}),
+        "assertions": gt.get("assertions", []),
     }
+

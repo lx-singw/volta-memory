@@ -74,9 +74,11 @@ def write_memory(
     importance_reasoning: str | None = None,
     plausibility_flag: str = "plausible",
     source: str = "individual",
+    timestamp: datetime | None = None,
 ) -> Memory:
     memory_id = uuid4()
-    now = datetime.now(timezone.utc)
+    from app.utils.clock import get_now
+    now = timestamp or get_now()
 
     with get_connection() as conn:
         row = conn.execute(
@@ -86,13 +88,13 @@ def write_memory(
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source
+                plausibility_flag, source, created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
                 %s, 1, 1,
                 %s, %s,
                 %s, %s, %s,
-                %s, %s
+                %s, %s, %s
             )
             RETURNING *
             """,
@@ -110,6 +112,7 @@ def write_memory(
                 importance_reasoning,
                 plausibility_flag,
                 source,
+                now,
             ),
         ).fetchone()
 
@@ -120,6 +123,7 @@ def write_from_draft(
     entity_id: str,
     draft: MemoryDraft,
     source_session_id: UUID | None = None,
+    timestamp: datetime | None = None,
 ) -> Memory:
     return write_memory(
         entity_id=entity_id,
@@ -131,6 +135,7 @@ def write_from_draft(
         importance_score=draft.importance_score,
         importance_reasoning=draft.importance_reasoning,
         source=draft.source,
+        timestamp=timestamp,
     )
 
 

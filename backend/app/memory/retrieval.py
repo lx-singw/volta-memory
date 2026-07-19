@@ -23,7 +23,8 @@ def rank_memories(entity_id: str, memories: list[Memory], query_context: str = "
     """score = confidence * log(1 + reinforcement_count) * recency_weight"""
     _ = query_context
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    from app.utils.clock import get_now
+    now = get_now()
     ranked: list[ScoredMemory] = []
 
     for memory in memories:

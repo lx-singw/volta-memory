@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
     qwen_model_chat: str = Field(default="qwen-max", alias="QWEN_MODEL_CHAT")
     qwen_model_extraction: str = Field(default="qwen-plus", alias="QWEN_MODEL_EXTRACTION")
-    qwen_model_embedding: str = Field(default="text-embedding-v2", alias="QWEN_MODEL_EMBEDDING")
+    qwen_model_embedding: str = Field(default="text-embedding-v4", alias="QWEN_MODEL_EMBEDDING")
     qwen_max_retries: int = Field(default=3, alias="QWEN_MAX_RETRIES")
     qwen_timeout_seconds: int = Field(default=30, alias="QWEN_TIMEOUT_SECONDS")
 

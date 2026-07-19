@@ -1,21 +1,45 @@
 id: persona_15_correction_bill
 entity_id: eval-entity-15
-theme: Corrects stated bill amount in session 2
+theme: Corrects bill R3,200 to R3,800
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Corrects stated bill amount in session 2."
+    content: Hi, I'm looking into solar. My monthly electricity bill is R3,200.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: Welcome! With a monthly bill of R3,200, we can design a standard system.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
+    content: Actually, I checked my statement, and my bill is more like R3,800 on
+      average now.
   - role: assistant
-    content: I'll reference what I remember from last time.
+    content: Okay, I will update your bill amount to R3,800 in my recommendations.
+- session_number: 3
+  messages:
+  - role: user
+    content: What system recommendations do you have for me now?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: true
-  adversarial: false
+  should_recall:
+  - R3,800
+  should_not_recall:
+  - R3,200
+  should_correct:
+  - old: R3,200
+    new: R3,800
+  downstream_quality:
+    must_reference:
+    - R3,800
+    must_not_reference:
+    - R3,200
+  assertions:
+  - type: memory_stored
+    id: monthly_bill_old
+    value: '3200'
+  - type: superseded
+    old: monthly_bill_old
+    new: monthly_bill_current
+    value: '3800'
+  - type: response_uses
+    id: monthly_bill_current
+    value: '3800'

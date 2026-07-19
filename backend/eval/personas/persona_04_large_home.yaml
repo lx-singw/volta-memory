@@ -1,21 +1,48 @@
 id: persona_04_large_home
 entity_id: eval-entity-04
-theme: 4-bedroom home with pool pump load
+theme: Large home with specific consumption profile
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 4-bedroom home with pool pump load."
+    content: I have a large double-story house with 5 bedrooms, a heated pool, and
+      central aircon. I want to transition to solar.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: A large home with a pool and aircon has a high load profile. What is
+      your monthly bill?
+  - role: user
+    content: It's about R7,500. I need to make sure we size the inverter and panel
+      array to cover the pool pump and aircon.
+  - role: assistant
+    content: Understood, I've noted the R7,500 bill and pool/aircon requirements.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: What system specifications are we looking at for my house?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - pool
+  - aircon
+  - R7,500
+  - large
+  should_not_recall: []
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - pool
+    - aircon
+    - R7,500
+    must_not_reference: []
+  assertions:
+  - type: memory_stored
+    id: pool_requirement
+    value: pool
+  - type: memory_stored
+    id: aircon_requirement
+    value: aircon
+  - type: memory_stored
+    id: monthly_bill
+    value: '7500'
+  - type: response_uses
+    id: monthly_bill
+    value: '7500'

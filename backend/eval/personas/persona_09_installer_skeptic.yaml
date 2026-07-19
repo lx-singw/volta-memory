@@ -1,21 +1,50 @@
 id: persona_09_installer_skeptic
 entity_id: eval-entity-09
-theme: Skeptical of installer quotes
+theme: Warranties and installer trust
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Skeptical of installer quotes."
+    content: I'm shopping around for solar but I'm worried about getting ripped off
+      by installers or getting bad warranties.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: It's important to be cautious. What system size are you considering,
+      and what specific warranty concerns do you have?
+  - role: user
+    content: My bill is R3,000. I want at least a 10-year warranty on the inverter
+      and 25 years on the panels, and a certified tier-1 installer.
+  - role: assistant
+    content: Understood. Noted 10-year warranty on inverter, 25-year on panels, and
+      tier-1 installer.
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: What installer requirements and warranties did we discuss?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - 10-year
+  - 25 years
+  - tier-1
+  - R3,000
+  should_not_recall: []
+  should_correct: []
+  downstream_quality:
+    must_reference:
+    - 10-year
+    - '25'
+    - tier-1
+    - R3,000
+    must_not_reference: []
+  assertions:
+  - type: memory_stored
+    id: inverter_warranty
+    value: 10-year
+  - type: memory_stored
+    id: panel_warranty
+    value: 25 years
+  - type: memory_stored
+    id: installer_tier
+    value: tier-1
+  - type: response_uses
+    id: monthly_bill
+    value: '3000'

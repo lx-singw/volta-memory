@@ -106,10 +106,11 @@ def post_message(
                         if isinstance(ctx_data, str):
                             ctx_data = json.loads(ctx_data)
                         
-                        yield f"data: {json.dumps({
+                        chunk_data = {
                             'memory_context_used': ctx_data,
                             'explain_trace': trace_dict
-                        })}\n\n"
+                        }
+                        yield f"data: {json.dumps(chunk_data)}\n\n"
             except ValueError as exc:
                 yield f"data: {json.dumps({'error': str(exc)})}\n\n"
         return StreamingResponse(event_generator(), media_type="text/event-stream")

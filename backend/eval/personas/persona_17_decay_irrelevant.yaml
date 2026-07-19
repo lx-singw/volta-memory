@@ -1,21 +1,42 @@
 id: persona_17_decay_irrelevant
 entity_id: eval-entity-17
-theme: Mentions irrelevant hobby once
+theme: User mentions pet once, should decay and be excluded
 sessions:
 - session_number: 1
   messages:
   - role: user
-    content: "Session 1 opener \u2014 Mentions irrelevant hobby once."
+    content: Hi, I want solar. My monthly bill is R3,400. I also have a pet parrot
+      named Charlie who likes to sing.
   - role: assistant
-    content: "Thanks for sharing \u2014 tell me more about your situation."
+    content: Got it. Sizing for R3,400. Say hi to Charlie!
 - session_number: 2
   messages:
   - role: user
-    content: Follow-up without repeating session 1 details.
-  - role: assistant
-    content: I'll reference what I remember from last time.
+    content: What system size do you recommend for my house?
 ground_truth:
-  should_recall_in_session_2:
-  - session 1
-  should_supersede: false
-  adversarial: false
+  should_recall:
+  - R3,400
+  should_not_recall:
+  - parrot
+  - Charlie
+  should_forget:
+  - parrot
+  - Charlie
+  downstream_quality:
+    must_reference:
+    - R3,400
+    must_not_reference:
+    - parrot
+    - Charlie
+  assertions:
+  - type: memory_stored
+    id: monthly_bill
+    value: '3400'
+  - type: memory_stored
+    id: pet_parrot
+    value: parrot
+  - type: excluded_at_query
+    id: pet_parrot
+  - type: response_uses
+    id: monthly_bill
+    value: '3400'

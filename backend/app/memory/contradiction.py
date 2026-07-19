@@ -20,7 +20,11 @@ def detect_conflict(new_observation: str, existing_memories: list[Memory]) -> Me
     return None
 
 
-def classify_relationship(new_observation: str, existing_memories: list[Memory]) -> dict[str, Any]:
+def classify_relationship(
+    new_observation: str,
+    existing_memories: list[Memory],
+    new_memory_type: MemoryType | None = None
+) -> dict[str, Any]:
     """Call Qwen to classify the relationship of new_observation to existing memories.
     Returns:
     {
@@ -29,9 +33,19 @@ def classify_relationship(new_observation: str, existing_memories: list[Memory])
         "reasoning": str
     }
     """
+    if new_memory_type is not None:
+        if new_memory_type in {MemoryType.FACT, MemoryType.CORRECTION}:
+            allowed_types = {MemoryType.FACT, MemoryType.CORRECTION}
+        elif new_memory_type == MemoryType.PREFERENCE:
+            allowed_types = {MemoryType.PREFERENCE}
+        else:
+            allowed_types = {new_memory_type}
+    else:
+        allowed_types = {MemoryType.FACT, MemoryType.CORRECTION, MemoryType.PREFERENCE}
+
     candidates = [
         m for m in existing_memories
-        if not m.is_superseded and m.memory_type in {MemoryType.FACT, MemoryType.CORRECTION, MemoryType.PREFERENCE}
+        if not m.is_superseded and m.memory_type in allowed_types
     ]
 
     if not candidates:
@@ -44,7 +58,7 @@ def classify_relationship(new_observation: str, existing_memories: list[Memory])
         "Your task is to analyze a new user observation against a list of existing memories "
         "and determine if the new observation:\n"
         "1. 'contradicts': updates, corrects, or opposes a previous observation (e.g. changing monthly bill from R3000 to R2500, changing solar preference, or changing roof layout).\n"
-        "2. 'reinforces': repeats, confirms, supports, or reinforces an existing memory without contradicting it (e.g. stating 'backup is key' again, or restating their house size).\n"
+        "2. 'reinforces': is a duplicate, restatement, or holds the exact same factual info/value as an existing memory, possibly in different words (e.g. stating 'backup duration is my priority' when 'prioritizes backup duration' is already stored, or restating their house size). Do NOT use 'reinforces' if the new observation contains new specific details, numbers, or facts (e.g., a specific bill amount of R3,200 does NOT reinforce a general preference of wanting to reduce bills; they are 'unrelated' because the specific amount R3,200 is new information that must be stored separately).\n"
         "3. 'unrelated': describes a different aspect or topic entirely (e.g. no semantic overlap or reference to the topics in the existing memories).\n\n"
         "Return a JSON object in this format:\n"
         "{\n"
@@ -103,16 +117,33 @@ def _looks_like_bill_correction(new_text: str, old_text: str) -> bool:
     return new_text != old_text
 
 
-def resolve(old_memory: Memory, new_observation: str, entity_id: str, session_id: UUID | None) -> tuple[Memory, Memory]:
+def resolve(old_memory: Memory, new_draft: MemoryDraft | str, entity_id: str, session_id: UUID | None) -> tuple[Memory, Memory]:
     from app.memory.importance import score_importance
-    importance = score_importance(new_observation)
-    draft = MemoryDraft(
-        memory_type=MemoryType.CORRECTION,
-        observation=new_observation,
-        base_confidence=0.95,
-        importance_score=importance.importance_score,
-        importance_reasoning=importance.importance_reasoning,
-    )
+    
+    if isinstance(new_draft, str):
+        importance = score_importance(new_draft)
+        draft = MemoryDraft(
+            memory_type=MemoryType.CORRECTION,
+            observation=new_draft,
+            base_confidence=0.95,
+            importance_score=importance.importance_score,
+            importance_reasoning=importance.importance_reasoning,
+        )
+    else:
+        draft = new_draft.model_copy(deep=True)
+        draft.memory_type = MemoryType.CORRECTION
+        draft.base_confidence = 0.95
+
+    # Build the evidence chain preserving historical provenance
+    evidence = draft.evidence or {}
+    evidence["supersedes"] = {
+        "memory_id": str(old_memory.id),
+        "observation": old_memory.observation,
+        "evidence": old_memory.evidence
+    }
+    draft.evidence = evidence
+
     new_memory = write_from_draft(entity_id, draft, source_session_id=session_id)
     supersede(old_memory.id, new_memory)
     return old_memory, new_memory
+
