@@ -1,28 +1,8 @@
-type Props = {
-  sessionActive: boolean;
-  loading: boolean;
-  onStart: () => void;
-  onEnd: () => void;
-};
+import { ArrowRight, CheckCircle2 } from "lucide-react";
+
+type Props = { sessionActive: boolean; loading: boolean; onStart: () => void; onEnd: () => void };
 
 export default function SessionControls({ sessionActive, loading, onStart, onEnd }: Props) {
-  return (
-    <div style={{ display: "flex", gap: "0.5rem" }}>
-      <button onClick={onStart} disabled={sessionActive || loading} style={btn}>
-        Start session
-      </button>
-      <button onClick={onEnd} disabled={!sessionActive || loading} style={{ ...btn, background: "#b45309" }}>
-        End session (extract memories)
-      </button>
-    </div>
-  );
+  if (sessionActive) return <button onClick={onEnd} disabled={loading} className="button"><CheckCircle2 size={16} /> End & remember</button>;
+  return <button onClick={onStart} disabled={loading} className="button button-primary session-start">{loading ? "Opening consultation…" : "Start consultation"}<ArrowRight size={17} /></button>;
 }
-
-const btn: React.CSSProperties = {
-  padding: "0.5rem 0.75rem",
-  borderRadius: 8,
-  border: "none",
-  background: "#059669",
-  color: "white",
-  cursor: "pointer",
-};

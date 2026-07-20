@@ -1,16 +1,22 @@
+import type { Metadata, Viewport } from "next";
+import { DM_Serif_Display, Manrope } from "next/font/google";
+import "./globals.css";
+import AppHeader from "./components/AppHeader";
+
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
+const editorial = DM_Serif_Display({ weight: "400", subsets: ["latin"], variable: "--font-editorial" });
+
+export const metadata: Metadata = {
+  title: "Volta Memory | Explainable home energy advice",
+  description: "A solar consultation that remembers your home, priorities, and decisions.",
+};
+
+export const viewport: Viewport = { themeColor: "#07111F", colorScheme: "dark" };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0, background: "#0f172a", color: "#e2e8f0" }}>
-        <header style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #334155" }}>
-          <strong>Volta Memory</strong>
-          <nav style={{ display: "inline-flex", gap: "1rem", marginLeft: "1.5rem" }}>
-            <a href="/" style={{ color: "#93c5fd" }}>Chat</a>
-            <a href="/memory" style={{ color: "#93c5fd" }}>Memory view</a>
-          </nav>
-        </header>
-        <main>{children}</main>
-      </body>
+    <html lang="en-ZA" className={`${manrope.variable} ${editorial.variable}`}>
+      <body><div className="app-shell"><AppHeader /><main>{children}</main></div></body>
     </html>
   );
 }
