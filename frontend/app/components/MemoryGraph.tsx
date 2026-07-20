@@ -55,7 +55,7 @@ export default function MemoryGraph({ memories }: Props) {
   }, []);
 
   const graph = useMemo(() => {
-    const nodes = memories.map((memory) => ({ id: memory.id || memory.memory_id, name: text(memory), val: Math.max(3.5, (memory.importance_score ?? confidence(memory)) * 10), color: colors[nodeKind(memory)], confidence: confidence(memory), memory }));
+    const nodes = memories.map((memory) => ({ id: memory.id || memory.memory_id, name: text(memory), val: Math.max(12, (memory.importance_score ?? confidence(memory)) * 30), color: colors[nodeKind(memory)], confidence: confidence(memory), memory }));
     const links: any[] = [];
     memories.forEach((memory) => {
       const id = memory.id || memory.memory_id;
@@ -75,28 +75,36 @@ export default function MemoryGraph({ memories }: Props) {
     <div className="graph-layout">
       <section className="panel graph-panel" aria-label="Interactive Volta memory map">
         <header><div><p className="eyebrow">Relationship map</p><h2>Homeowner evidence</h2></div><span className="pill"><MousePointer2 size={13} /> Select a memory</span></header>
-        <div ref={ref} className="graph-canvas"><ForceGraph2D width={dimensions.width} height={dimensions.height} graphData={graph} backgroundColor="#0A1728" nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence`} nodeColor={(node: any) => node.color} nodeRelSize={6} linkColor={(link: any) => link.color} linkWidth={(link: any) => link.kind === "correction" ? 2.5 : 1} linkDirectionalArrowLength={(link: any) => link.kind === "correction" ? 5 : 0} onNodeClick={(node: any) => setSelected(node.memory)} nodeCanvasObjectMode={() => "after"}         nodeCanvasObject={(node: any, context, scale) => {
-          if (scale < 0.9) return;
-          const maxLines = 3;
-          const rawLines = wrapText(node.name, 18);
-          const lines = rawLines.slice(0, maxLines);
-          if (rawLines.length > maxLines) {
-            lines[maxLines - 1] += "…";
+        <div ref={ref} className="graph-canvas"><ForceGraph2D width={dimensions.width} height={dimensions.height} graphData={graph} backgroundColor="#0A1728" nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence`} nodeColor={(node: any) => node.color} nodeRelSize={6} linkColor={(link: any) => link.color} linkWidth={(link: any) => link.kind === "correction" ? 2.5 : 1} linkDirectionalArrowLength={(link: any) => link.kind === "correction" ? 5 : 0} onNodeClick={(node: any) => setSelected(node.memory)} nodeCanvasObjectMode={() => "replace"}         nodeCanvasObject={(node: any, context, scale) => {
+          const isSelected = selected && (selected.id || selected.memory_id) === (node.memory.id || node.memory.memory_id);
+          const radius = Math.max(12, Math.sqrt(node.val || 12) * 2.2);
+          
+          // Selection glow ring
+          if (isSelected) {
+            context.beginPath();
+            context.arc(node.x, node.y, radius + 5, 0, 2 * Math.PI);
+            context.fillStyle = "rgba(66, 211, 232, 0.25)";
+            context.fill();
+            
+            context.beginPath();
+            context.arc(node.x, node.y, radius + 2, 0, 2 * Math.PI);
+            context.strokeStyle = "#42D3E8";
+            context.lineWidth = 1.5;
+            context.stroke();
           }
           
-          const fontSize = Math.max(9, 11 / scale);
-          context.font = `600 ${fontSize}px 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-          context.fillStyle = node.memory.is_superseded ? "#9FB0C3" : "#F4F7FB";
-          context.textAlign = "center";
-          context.textBaseline = "top";
+          // Main circle
+          context.beginPath();
+          context.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+          context.fillStyle = node.color;
+          context.fill();
           
-          const lineHeight = fontSize * 1.25;
-          const radius = Math.sqrt(node.val || 10) * 1.5;
-          const startY = node.y + radius + 4;
-          
-          lines.forEach((line, i) => {
-            context.fillText(line, node.x, startY + i * lineHeight);
-          });
+          // Border
+          context.beginPath();
+          context.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+          context.strokeStyle = "#0A1728";
+          context.lineWidth = 1.5;
+          context.stroke();
         }} /> </div>
         <footer aria-label="Memory map legend"><span><i className="legend-dot gold" /> Active facts</span><span><i className="legend-dot violet" /> Preferences</span><span><i className="legend-dot cyan" /> Evidence</span><span><i className="legend-dot muted-dot" /> Superseded</span><span><Link2 size={12} /> Links show reinforcement or correction</span></footer>
       </section>
