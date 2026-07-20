@@ -22,8 +22,19 @@ class Settings(BaseSettings):
     qwen_model_chat: str = Field(default="qwen-max", alias="QWEN_MODEL_CHAT")
     qwen_model_extraction: str = Field(default="qwen-plus", alias="QWEN_MODEL_EXTRACTION")
     qwen_model_embedding: str = Field(default="text-embedding-v4", alias="QWEN_MODEL_EMBEDDING")
+    # This is the maximum number of *attempts*, including the initial request.
+    # It deliberately stays small because Function Compute has a 60 second cap.
     qwen_max_retries: int = Field(default=3, alias="QWEN_MAX_RETRIES")
     qwen_timeout_seconds: int = Field(default=30, alias="QWEN_TIMEOUT_SECONDS")
+    qwen_attempt_timeout_seconds: float = Field(
+        default=12.0, alias="QWEN_ATTEMPT_TIMEOUT_SECONDS"
+    )
+    qwen_invocation_budget_seconds: float = Field(
+        default=42.0, alias="QWEN_INVOCATION_BUDGET_SECONDS"
+    )
+    qwen_retry_initial_delay_seconds: float = Field(
+        default=0.5, alias="QWEN_RETRY_INITIAL_DELAY_SECONDS"
+    )
 
     # Database
     database_url: str = Field(
@@ -89,6 +100,33 @@ class Settings(BaseSettings):
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     cors_allowed_origins: str = Field(default="http://localhost:3000", alias="CORS_ALLOWED_ORIGINS")
     session_idle_timeout_minutes: int = Field(default=30, alias="SESSION_IDLE_TIMEOUT_MINUTES")
+    # Leave time for transactional writes and a safe error response within the
+    # 60 second Function Compute request limit.  The lease is longer than the
+    # invocation budget so a live worker is not stolen, but finite so a killed
+    # Function Compute invocation can be retried safely.
+    function_invocation_budget_seconds: float = Field(
+        default=48.0, alias="FUNCTION_INVOCATION_BUDGET_SECONDS"
+    )
+    session_extraction_lease_seconds: int = Field(
+        default=70, alias="SESSION_EXTRACTION_LEASE_SECONDS"
+    )
+    public_showcase_entity_id: str = Field(default="demo-consumer-1", alias="PUBLIC_SHOWCASE_ENTITY_ID")
+    serve_bundled_static: bool = Field(default=False, alias="SERVE_BUNDLED_STATIC")
+
+    # Browser workspace and API protection. The opaque cookie is intentionally
+    # separate from the client-readable CSRF token used for double-submit checks.
+    auth_session_cookie_name: str = Field(default="volta_session", alias="AUTH_SESSION_COOKIE_NAME")
+    auth_csrf_cookie_name: str = Field(default="volta_csrf", alias="AUTH_CSRF_COOKIE_NAME")
+    auth_cookie_domain: str = Field(default="", alias="AUTH_COOKIE_DOMAIN")
+    auth_session_secret: str = Field(default="", alias="AUTH_SESSION_SECRET")
+    auth_session_ttl_hours: int = Field(default=24 * 14, alias="AUTH_SESSION_TTL_HOURS")
+    auth_magic_link_ttl_minutes: int = Field(default=15, alias="AUTH_MAGIC_LINK_TTL_MINUTES")
+    auth_magic_link_base_url: str = Field(default="", alias="AUTH_MAGIC_LINK_BASE_URL")
+    auth_email_provider: str = Field(default="disabled", alias="AUTH_EMAIL_PROVIDER")
+    auth_email_webhook_url: str = Field(default="", alias="AUTH_EMAIL_WEBHOOK_URL")
+    auth_email_webhook_token: str = Field(default="", alias="AUTH_EMAIL_WEBHOOK_TOKEN")
+    admin_api_key: str = Field(default="", alias="ADMIN_API_KEY")
+    allow_legacy_entity_selection: bool = Field(default=True, alias="ALLOW_LEGACY_ENTITY_SELECTION")
 
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
@@ -96,7 +134,15 @@ class Settings(BaseSettings):
     cost_tracking_enabled: bool = Field(default=True, alias="COST_TRACKING_ENABLED")
 
     def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+        # Credentialed wildcard CORS is both invalid in browsers and unsafe.
+        if self.app_env == "production":
+            return [origin for origin in origins if origin != "*"]
+        return origins
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.app_env == "production"
 
     def lambda_for_memory_type(self, memory_type: str) -> float:
         mapping = {
@@ -110,8 +156,17 @@ class Settings(BaseSettings):
 
     def redacted_repr(self) -> dict[str, object]:
         data = self.model_dump()
-        if self.log_redact_api_keys and data.get("qwen_api_key"):
-            data["qwen_api_key"] = "***"
+        if self.log_redact_api_keys:
+            for key in (
+                "qwen_api_key",
+                "database_url",
+                "auth_session_secret",
+                "admin_api_key",
+                "auth_email_webhook_token",
+                "auth_email_webhook_url",
+            ):
+                if data.get(key):
+                    data[key] = "***"
         return data
 
 

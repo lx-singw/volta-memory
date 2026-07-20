@@ -1,19 +1,23 @@
-# Hosted Live Demo — Public URL
+# Public URL and Cutover Record
 
-Replace with the durable public URL once deployed (ECS or Function Compute + frontend CDN).
+## Current verification endpoint
 
-Example:
+- Function Compute app: <https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run>
+- Function Compute memory view: <https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory>
+- Function Compute health: <https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health>
 
-```
-https://volta-memory.example.com
-```
+These URLs verify the present FC deployment. They are not a claim that the OSS/CDN and API Gateway cutover has already completed.
 
-Set in `.env`:
+## Required final public URLs
+
+Before submission, record the real values in the release environment and in `SUBMISSION.md`:
 
 ```bash
-LIVE_DEMO_URL=https://volta-memory.example.com
-NEXT_PUBLIC_API_BASE_URL=https://api.volta-memory.example.com
-CORS_ALLOWED_ORIGINS=https://volta-memory.example.com
+VOLTA_PUBLIC_APP_ORIGIN=https://<cdn-app-domain>
+VOLTA_PUBLIC_API_BASE_URL=https://<api-gateway-domain>
+VOLTA_PUBLIC_HEALTH_URL=https://<api-gateway-domain>/health
+CORS_ALLOWED_ORIGINS=https://<cdn-app-domain>
+FC_DISABLE_PUBLIC_INTERNET=true
 ```
 
-Keep this URL live through the full judging period (see `docs/07_Submission_Checklist.md`).
+There must be no `example.com`, localhost, shared reset route, or direct Function Compute public URL in the judge-facing submission copy after cutover.

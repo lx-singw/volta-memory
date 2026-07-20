@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-20T12:57:23.346425+00:00",
+  "completedAt": "2026-07-19T20:24:58+00:00",
+  "runId": "6a51d3eb-a02c-4511-9ace-f8586a431164",
+  "evaluatorCodeCommit": "cf845c7e",
+  "model": "qwen-max",
+  "configuration": {
+    "systems": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "personas": [
+      "persona_01_backup_priority",
+      "persona_02_cost_priority",
+      "persona_04_large_home",
+      "persona_05_small_apartment",
+      "persona_09_installer_skeptic",
+      "persona_11_technical_user",
+      "persona_15_correction_bill",
+      "persona_16_correction_priority",
+      "persona_17_decay_irrelevant",
+      "persona_18_reinforced_preference",
+      "persona_19_consolidation_candidate"
+    ],
+    "replicates": 3,
+    "expectedRuns": 132,
+    "sourceResults": "backend/eval/run_results.jsonl"
+  },
+  "configurationSha256": "279c2d5baef03364cdc37586aeaad1a0071a08b5902f759b6c0187203148f73e",
+  "expectedRuns": 132,
+  "successfulRuns": 132,
+  "failedRuns": 0,
+  "caseArtifact": {
+    "path": "backend/eval/artifacts/evaluation-cases.jsonl",
+    "sha256": "908a7b2bc6d25abbcb717d62aa2b1896ac3b1b49059b1883cb28f5c224bab4d5",
+    "redaction": "Conversation text, provider payloads, and error details are excluded."
+  },
+  "systems": {
+    "A": {
+      "label": "A_no_memory",
+      "metrics": {
+        "recall": {
+          "hits": 10,
+          "total": 66,
+          "ratio": 0.15151515151515152
+        },
+        "correction": {
+          "hits": 0,
+          "total": 6,
+          "ratio": 0.0
+        },
+        "forgetting": {
+          "hits": 20,
+          "total": 24,
+          "ratio": 0.8333333333333334
+        },
+        "quality": {
+          "hits": 30,
+          "total": 81,
+          "ratio": 0.37037037037037035
+        },
+        "db_stored": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_superseded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_excluded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        }
+      },
+      "online": {
+        "latencyP50Ms": 6289.0,
+        "tokensP50": 329.0,
+        "costAvgUsd": 0.001564
+      },
+      "offline": {
+        "latencyP50Ms": 0.0,
+        "costAvgUsd": 0.0
+      },
+      "sampleRuns": 33
+    },
+    "B": {
+      "label": "B_full_context",
+      "metrics": {
+        "recall": {
+          "hits": 66,
+          "total": 66,
+          "ratio": 1.0
+        },
+        "correction": {
+          "hits": 0,
+          "total": 6,
+          "ratio": 0.0
+        },
+        "forgetting": {
+          "hits": 6,
+          "total": 24,
+          "ratio": 0.25
+        },
+        "quality": {
+          "hits": 70,
+          "total": 81,
+          "ratio": 0.8641975308641975
+        },
+        "db_stored": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_superseded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_excluded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        }
+      },
+      "online": {
+        "latencyP50Ms": 5885.0,
+        "tokensP50": 413.0,
+        "costAvgUsd": 0.0019105454545454547
+      },
+      "offline": {
+        "latencyP50Ms": 0.0,
+        "costAvgUsd": 0.0
+      },
+      "sampleRuns": 33
+    },
+    "C": {
+      "label": "C_naive_rag",
+      "metrics": {
+        "recall": {
+          "hits": 60,
+          "total": 66,
+          "ratio": 0.9090909090909091
+        },
+        "correction": {
+          "hits": 0,
+          "total": 6,
+          "ratio": 0.0
+        },
+        "forgetting": {
+          "hits": 4,
+          "total": 24,
+          "ratio": 0.16666666666666666
+        },
+        "quality": {
+          "hits": 62,
+          "total": 81,
+          "ratio": 0.7654320987654321
+        },
+        "db_stored": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_superseded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        },
+        "db_excluded": {
+          "hits": 0,
+          "total": 0,
+          "ratio": null
+        }
+      },
+      "online": {
+        "latencyP50Ms": 13042.0,
+        "tokensP50": 423.0,
+        "costAvgUsd": 0.0017224727272727273
+      },
+      "offline": {
+        "latencyP50Ms": 0.0,
+        "costAvgUsd": 0.0
+      },
+      "sampleRuns": 33
+    },
+    "D": {
+      "label": "D_volta_memory",
+      "metrics": {
+        "recall": {
+          "hits": 56,
+          "total": 66,
+          "ratio": 0.8484848484848485
+        },
+        "correction": {
+          "hits": 3,
+          "total": 6,
+          "ratio": 0.5
+        },
+        "forgetting": {
+          "hits": 18,
+          "total": 24,
+          "ratio": 0.75
+        },
+        "quality": {
+          "hits": 68,
+          "total": 81,
+          "ratio": 0.8395061728395061
+        },
+        "db_stored": {
+          "hits": 49,
+          "total": 57,
+          "ratio": 0.8596491228070176
+        },
+        "db_superseded": {
+          "hits": 6,
+          "total": 6,
+          "ratio": 1.0
+        },
+        "db_excluded": {
+          "hits": 1,
+          "total": 3,
+          "ratio": 0.3333333333333333
+        }
+      },
+      "online": {
+        "latencyP50Ms": 10329.0,
+        "tokensP50": 584.0,
+        "costAvgUsd": 0.0020367333333333334
+      },
+      "offline": {
+        "latencyP50Ms": 25752.0,
+        "costAvgUsd": 0.0068080909090909095
+      },
+      "sampleRuns": 33
+    }
+  }
+}

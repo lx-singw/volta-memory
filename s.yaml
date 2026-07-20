@@ -19,6 +19,14 @@ resources:
       cpu: 0.5
       diskSize: 512
       code: "./backend"
+      # The deployment role is intentionally supplied by the release environment.
+      # It must be scoped to the Function Compute runtime, SLS delivery, and the
+      # exact Secret Manager resources documented in deployment/alibaba.
+      role: ${env(FC_RUNTIME_ROLE_ARN)}
+      # `auto` provisions or reuses an SLS project/logstore for this function.
+      # Pin a named project/logstore through the FC console after the first deploy
+      # if the account has central log-retention requirements.
+      logConfig: auto
       customRuntimeConfig:
         command:
           - "/var/fc/lang/python3.10/bin/python3"
@@ -38,13 +46,31 @@ resources:
         DATABASE_SSL_MODE: "require"
         QWEN_API_KEY: ${env(QWEN_API_KEY)}
         QWEN_API_BASE_URL: ${env(QWEN_API_BASE_URL)}
-        CORS_ALLOWED_ORIGINS: "*"
+        # Opaque browser-session HMAC key and server-side admin authority.
+        # Both values are injected from the release secret store; neither is
+        # client-readable or committed to this repository.
+        AUTH_SESSION_SECRET: ${env(AUTH_SESSION_SECRET)}
+        ADMIN_API_KEY: ${env(ADMIN_API_KEY)}
+        AUTH_SESSION_COOKIE_NAME: ${env(AUTH_SESSION_COOKIE_NAME)}
+        AUTH_CSRF_COOKIE_NAME: ${env(AUTH_CSRF_COOKIE_NAME)}
+        AUTH_COOKIE_DOMAIN: ${env(AUTH_COOKIE_DOMAIN)}
+        AUTH_SESSION_TTL_HOURS: ${env(AUTH_SESSION_TTL_HOURS)}
+        AUTH_MAGIC_LINK_BASE_URL: ${env(AUTH_MAGIC_LINK_BASE_URL)}
+        AUTH_EMAIL_PROVIDER: ${env(AUTH_EMAIL_PROVIDER)}
+        AUTH_EMAIL_WEBHOOK_URL: ${env(AUTH_EMAIL_WEBHOOK_URL)}
+        AUTH_EMAIL_WEBHOOK_TOKEN: ${env(AUTH_EMAIL_WEBHOOK_TOKEN)}
+        # This must be the exact HTTPS OSS/CDN origin (plus an explicitly
+        # approved preview origin), never a wildcard.
+        CORS_ALLOWED_ORIGINS: ${env(CORS_ALLOWED_ORIGINS)}
       triggers:
         - triggerName: http-trigger
           triggerType: http
           triggerConfig:
             authType: anonymous
-            disableURLInternet: false
+            # Keep this false only while validating the API Gateway cutover.
+            # Production releases must set FC_DISABLE_PUBLIC_INTERNET=true so
+            # public traffic reaches Function Compute through API Gateway.
+            disableURLInternet: ${env(FC_DISABLE_PUBLIC_INTERNET)}
             methods:
               - GET
               - POST

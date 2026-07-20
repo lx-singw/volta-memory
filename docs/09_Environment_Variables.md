@@ -41,7 +41,7 @@ Every variable below states: what it does, whether it's required or optional, it
 | `QWEN_API_BASE_URL` | Yes | `https://dashscope.aliyuncs.com/api/v1` | `chat/qwen_client.py` | Base endpoint — kept configurable rather than hardcoded so regional endpoints or future API version changes don't require a code change. |
 | `QWEN_MODEL_CHAT` | Yes | `qwen-max` | `chat/qwen_client.py`, `volta_prompt.py` | Model used for conversational responses. `qwen-max` for quality; `qwen-plus` as a cheaper alternative worth benchmarking against in the eval harness's cost metrics. |
 | `QWEN_MODEL_EXTRACTION` | Yes | `qwen-plus` | `memory/extraction.py` | Model used for end-of-session memory extraction. Deliberately allowed to differ from the chat model — extraction is a structured, lower-creativity task that may not need the largest model, which is itself a cost-efficiency data point worth reporting in BENCHMARKS.md. |
-| `QWEN_MODEL_EMBEDDING` | Yes (if hybrid retrieval enabled) | `text-embedding-v2` | `memory/embeddings.py` | Qwen's embedding endpoint for the hybrid retrieval fallback (Memory Design Doc §13). |
+| `QWEN_MODEL_EMBEDDING` | Yes (if hybrid retrieval enabled) | `text-embedding-v4` | `memory/embeddings.py` | Qwen's OpenAI-compatible embedding endpoint for the hybrid retrieval fallback (Memory Design Doc §13). |
 | `QWEN_MAX_RETRIES` | No | `3` | `chat/qwen_client.py` | Retry count on transient API failures before surfacing an error. |
 | `QWEN_TIMEOUT_SECONDS` | No | `30` | `chat/qwen_client.py` | Hard timeout per API call — prevents a hung request from stalling a demo session indefinitely. |
 
@@ -78,15 +78,17 @@ These back the third reference example (Productization Doc §2, §8) proving the
 
 | Variable | Required | Default | Used in | Description |
 |----------|----------|---------|---------|-------------|
-| `ALIBABA_ACCESS_KEY_ID` | Yes | — | `deployment/proof/deployment_verification.py` | Alibaba Cloud SDK credential — used by the deployment proof script to make a real, verifiable API call (e.g. ECS `DescribeInstances`). |
+| `ALIBABA_ACCESS_KEY_ID` | Release/proof only | — | `deployment/proof/deployment_verification.py` | Alibaba Cloud SDK credential for the deployment proof script. It is never embedded in the Function Compute runtime or frontend. |
 | `ALIBABA_ACCESS_KEY_SECRET` | Yes | — | Same | Paired secret for the above. |
-| `ALIBABA_REGION` | Yes | `ap-southeast-1` | Same, and `ecs-setup.md` provisioning | Region for ECS/Function Compute deployment. Choose based on lowest latency to your primary demo audience/judges, not necessarily proximity to South Africa given this is a hackathon demo, not GridFreeHub production. |
-| `ALIBABA_ECS_INSTANCE_ID` | Yes if using ECS | — | `deployment_verification.py` | The specific instance ID the proof script targets — makes the proof concrete and checkable, not a generic "we have an account" claim. |
-| `ALIBABA_FC_SERVICE_NAME` | Yes if using Function Compute instead of ECS | — | `function-compute.yaml` | Service name if the serverless deployment path is chosen instead of ECS. |
+| `ALIBABA_REGION` | Yes | `ap-southeast-1` | Serverless Devs / proof | Region for Function Compute, RDS, OSS/CDN, and API Gateway. |
+| `ALIBABA_FC_ENDPOINT` | Proof only | — | `deployment_verification.py` | Function Compute API endpoint used to verify the deployed function. |
+| `ALIBABA_FC_FUNCTION_NAME` | Proof only | — | `deployment_verification.py` | Function Compute 3.0 function name used for deployment proof. |
 | `ALIBABA_RDS_INSTANCE_ID` | Yes | — | `rds-postgres-setup.md` | Identifies the managed Postgres instance backing `DATABASE_URL` in production — referenced in the deployment proof recording to show the database itself, not just the compute, runs on Alibaba Cloud. |
-| `ALIBABA_OSS_BUCKET` | Optional | — | Only if using OSS for any static asset storage (e.g. serving the architecture diagram image) | Object storage bucket name, if used. |
+| `ALIBABA_OSS_BUCKET` | Yes | — | `scripts/upload_frontend.py` | OSS bucket that publishes the static Next.js export behind CDN. |
+| `VOLTA_PUBLIC_APP_ORIGIN` | Yes in production | — | `scripts/write_runtime_config.py` | Canonical HTTPS OSS/CDN application origin. |
+| `VOLTA_PUBLIC_API_BASE_URL` | Yes in production | — | `scripts/write_runtime_config.py`, gateway | Canonical HTTPS API Gateway origin; written into the public runtime config. |
 
-**Security note:** these credentials grant real cloud account access — scope the IAM policy attached to this access key to the minimum required (ECS describe/read, RDS connect, and whatever the deployment proof script needs) rather than using full account admin credentials for a hackathon demo.
+**Security note:** scope the proof AccessKey and Function Compute RAM role to only required resources. The runtime role reads approved secrets and emits SLS logs; it must not have account-wide administrator access.
 
 ---
 
@@ -168,7 +170,7 @@ These back the third reference example (Productization Doc §2, §8) proving the
 | `APP_ENV` | Yes | `development` | `app/config.py` | `development` / `staging` / `production` — gates behaviour like verbose error responses (dev only) and which `.env` values are treated as required-strict vs warn-only. |
 | `APP_PORT` | No | `8000` | `app/main.py` | Port the FastAPI server binds to. |
 | `APP_HOST` | No | `0.0.0.0` | `app/main.py` | Bind address — `0.0.0.0` required for the Alibaba-hosted deployment to be reachable externally. |
-| `CORS_ALLOWED_ORIGINS` | Yes in production | `http://localhost:3000` | `app/main.py` | Comma-separated allowed origins for the frontend to call the API — must include the hosted live demo's actual frontend URL once deployed (Section 13). |
+| `CORS_ALLOWED_ORIGINS` | Yes in production | `http://localhost:3000` in local dev only | `app/main.py` | Exact comma-separated OSS/CDN application and approved preview origins. Wildcards are rejected in production. |
 | `SESSION_IDLE_TIMEOUT_MINUTES` | No | `30` | `chat/session.py` | How long a session can sit inactive before it's treated as ended and memory extraction is triggered automatically — relevant since the demo uses an explicit "end session" button but a real deployment needs an idle fallback. |
 
 ---
@@ -177,11 +179,11 @@ These back the third reference example (Productization Doc §2, §8) proving the
 
 | Variable | Required | Default | Used in | Description |
 |----------|----------|---------|---------|-------------|
-| `LIVE_DEMO_URL` | Yes (once deployed) | — | README, submission text description | The durable public URL judges and the community can test directly, per Directory Structure Doc §11 and Productization Doc §8. |
-| `LIVE_DEMO_RATE_LIMIT_PER_IP` | Yes | `20` | `deployment/live-demo/rate-limiting.py` | Max requests per IP per hour on the public instance — prevents cost-exhaustion abuse of the shared Qwen API key during the public judging period. |
-| `LIVE_DEMO_DEMO_ENTITY_RESET_HOURS` | No | `24` | `deployment/live-demo/rate-limiting.py` | How often the public demo's memory store for anonymous visitors is reset, so one visitor's test data doesn't permanently pollute the shared instance for the next. |
+| `VOLTA_PUBLIC_APP_ORIGIN` | Yes (once deployed) | — | README and runtime config | Canonical OSS/CDN URL judges can open in an incognito browser. |
+| `VOLTA_PUBLIC_API_BASE_URL` | Yes (once deployed) | — | runtime config and API Gateway | Canonical gateway URL. It is distinct from the direct Function Compute verification endpoint. |
+| `API_GATEWAY_RATE_LIMIT_PER_IP` | Yes | operator policy | API Gateway | Per-IP/session/account throttling policy that bounds public Qwen cost. |
 
-**Security note:** the hosted demo shares one `QWEN_API_KEY` across all public visitors — the rate limit above exists specifically to bound cost exposure from that shared key during the judging window.
+**Security note:** Qwen credentials remain only in Function Compute. Each visitor receives an isolated anonymous workspace; the immutable showcase is never a shared mutable demo account.
 
 ---
 
@@ -189,9 +191,9 @@ These back the third reference example (Productization Doc §2, §8) proving the
 
 | Variable | Required | Default | Used in | Description |
 |----------|----------|---------|---------|-------------|
-| `NEXT_PUBLIC_API_BASE_URL` | Yes | `http://localhost:8000` | `frontend/app/page.tsx`, all frontend API calls | Points the chat UI and memory transparency view at the backend — must be updated to the deployed Alibaba-hosted URL for the live demo build. |
-| `NEXT_PUBLIC_DEMO_ENTITY_ID` | No | `demo-consumer-1` | Frontend | Default entity ID pre-filled for anonymous public demo visitors. |
-| `NEXT_PUBLIC_ENABLE_TRANSPARENCY_VIEW` | No | `true` | `frontend/app/memory/page.tsx` | Toggles visibility of the memory transparency view in the public build — should stay `true` since it's core to the submission's proof strategy, but flagged here in case a judge-only vs public-facing build distinction is ever needed. |
+| `VOLTA_PUBLIC_API_BASE_URL` | Yes in production | — | `frontend/public/runtime-config.js` | Written by `scripts/write_runtime_config.py` before the static build. A production export fails if it is missing, non-HTTPS, or localhost. |
+| `AUTH_CSRF_COOKIE_NAME` | No | `volta_csrf` | browser/API | Client-readable half of the CSRF double-submit check; the session cookie remains HttpOnly. |
+| `AUTH_COOKIE_DOMAIN` | Yes for `app` + `api` subdomains | — | API cookie settings | Shared parent domain (for example `.example.com`) so credentialed API calls can present the workspace session. |
 
 ---
 
@@ -232,7 +234,7 @@ QWEN_API_KEY=
 QWEN_API_BASE_URL=https://dashscope.aliyuncs.com/api/v1
 QWEN_MODEL_CHAT=qwen-max
 QWEN_MODEL_EXTRACTION=qwen-plus
-QWEN_MODEL_EMBEDDING=text-embedding-v2
+QWEN_MODEL_EMBEDDING=text-embedding-v4
 QWEN_MAX_RETRIES=3
 QWEN_TIMEOUT_SECONDS=30
 
@@ -251,10 +253,12 @@ DATABASE_SSL_MODE=disable
 ALIBABA_ACCESS_KEY_ID=
 ALIBABA_ACCESS_KEY_SECRET=
 ALIBABA_REGION=ap-southeast-1
-ALIBABA_ECS_INSTANCE_ID=
-ALIBABA_FC_SERVICE_NAME=
+ALIBABA_FC_ENDPOINT=
+ALIBABA_FC_FUNCTION_NAME=
 ALIBABA_RDS_INSTANCE_ID=
 ALIBABA_OSS_BUCKET=
+VOLTA_PUBLIC_APP_ORIGIN=
+VOLTA_PUBLIC_API_BASE_URL=
 
 # --- Memory Engine Tuning (Section 6) ---
 MAX_MEMORY_TOKENS=800
@@ -304,15 +308,19 @@ APP_HOST=0.0.0.0
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 SESSION_IDLE_TIMEOUT_MINUTES=30
 
-# --- Hosted Live Demo (Section 13) ---
-LIVE_DEMO_URL=
-LIVE_DEMO_RATE_LIMIT_PER_IP=20
-LIVE_DEMO_DEMO_ENTITY_RESET_HOURS=24
-
-# --- Frontend (Section 14) ---
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-NEXT_PUBLIC_DEMO_ENTITY_ID=demo-consumer-1
-NEXT_PUBLIC_ENABLE_TRANSPARENCY_VIEW=true
+# --- Public edge + browser workspaces (Sections 13–14) ---
+# Use local origins only with APP_ENV=development. Production requires HTTPS.
+VOLTA_PUBLIC_APP_ORIGIN=
+VOLTA_PUBLIC_API_BASE_URL=
+AUTH_SESSION_COOKIE_NAME=volta_session
+AUTH_CSRF_COOKIE_NAME=volta_csrf
+AUTH_COOKIE_DOMAIN=
+AUTH_SESSION_SECRET=
+AUTH_MAGIC_LINK_BASE_URL=
+AUTH_EMAIL_PROVIDER=disabled
+AUTH_EMAIL_WEBHOOK_URL=
+AUTH_EMAIL_WEBHOOK_TOKEN=
+ADMIN_API_KEY=
 
 # --- Package Publishing (Section 15) — CI only, not local runtime ---
 PYPI_API_TOKEN=
@@ -332,9 +340,9 @@ COST_TRACKING_ENABLED=true
 
 **Redaction is not optional.** `LOG_REDACT_API_KEYS=true` must be enforced in every environment, including local development — the habit of "I'll just leave verbose logging on locally" is exactly how a key ends up in a screen-recording taken for the demo video. Given this project's entire submission strategy involves recording screens repeatedly (Documents 06 and its addendum), this is a genuine, non-theoretical risk worth calling out explicitly rather than assuming.
 
-**Scope cloud credentials minimally.** The Alibaba IAM policy attached to `ALIBABA_ACCESS_KEY_ID` should grant only what the deployment proof script and the application's actual runtime needs (ECS describe, RDS connect) — not account-wide administrative access, which is both a security best practice and, if a judge inspects the deployment proof script, a signal of engineering maturity rather than hackathon shortcuts.
+**Scope cloud credentials minimally.** The proof AccessKey needs only Function Compute read/proof access. The Function Compute RAM role needs only the approved Secret Manager, RDS/VPC, and SLS permissions. Neither should have account-wide administrative access.
 
-**Rotate before and after the public demo window.** Because `LIVE_DEMO_URL` (Section 13) exposes a shared `QWEN_API_KEY` to public traffic for the duration of judging, rotate that key immediately after the judging period closes, regardless of whether `LIVE_DEMO_RATE_LIMIT_PER_IP` appeared to hold.
+**Rotate before and after the public demo window.** Qwen credentials are never exposed to the browser, but public traffic still consumes the function-held key. Monitor Gateway/SLS spend anomalies and rotate the Secret Manager value if abuse or a leak is suspected.
 
 ---
 
@@ -403,7 +411,6 @@ Given the Qwen Cloud free-trial credit is finite and this project's eval harness
 | Self-tuning grid search (27 combos × 20 personas, reduced session count) | ~540 | 400 | 216,000 |
 | Chaos/concurrency testing | ~100 | 300 | 30,000 |
 | Human eval study (8–12 participants × 2 variants) | ~40 | 500 | 20,000 |
-| Public live demo (rate-limited, judging window) | Variable, capped by `LIVE_DEMO_RATE_LIMIT_PER_IP` | 500 | Bounded, monitor actual usage daily |
+| Public live demo (API Gateway throttled, judging window) | Variable, bounded by gateway rate/concurrency policy | 500 | Bounded; monitor SLS cost and error dashboards daily |
 
 **Action before running the full suite:** total the known free-trial credit allocation and compare against the ~450,000+ token estimate above (excluding the variable live-demo pool). If tight, the self-tuning grid search (highest individual cost, lowest scoring leverage per the earlier priority ranking) is the first candidate to reduce in scope — cut the grid size or persona count for that specific run before cutting anything from the core eval harness or demo recordings, which carry more direct scoring weight.
-

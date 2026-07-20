@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+import time
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import Any, Iterator
 
 import httpx
 
+from app.chat.tokenizer import count_tokens
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
-
-
-import time
-from contextvars import ContextVar
-from dataclasses import dataclass
-from app.chat.tokenizer import count_tokens
 
 @dataclass
 class QwenCall:
@@ -32,6 +31,67 @@ _qwen_calls_context: ContextVar[list[QwenCall] | None] = ContextVar("qwen_calls"
 _current_system_context: ContextVar[str | None] = ContextVar("current_system", default=None)
 _current_persona_context: ContextVar[str | None] = ContextVar("current_persona", default=None)
 _current_replicate_context: ContextVar[int | None] = ContextVar("current_replicate", default=None)
+_qwen_deadline_context: ContextVar[float | None] = ContextVar("qwen_deadline", default=None)
+
+
+class QwenInvocationDeadlineExceeded(TimeoutError):
+    """Raised before a Qwen call can exceed the request's configured budget."""
+
+
+@contextmanager
+def qwen_invocation_budget(seconds: float | None = None) -> Iterator[None]:
+    """Share one monotonic deadline across every Qwen call in a request.
+
+    Nested callers can only shorten the deadline.  This matters for end-session
+    extraction, where extraction, scoring, and contradiction classification all
+    use Qwen and must fit inside one Function Compute invocation.
+    """
+    settings = get_settings()
+    requested_seconds = (
+        settings.qwen_invocation_budget_seconds if seconds is None else seconds
+    )
+    now = time.monotonic()
+    requested_deadline = now + max(0.0, float(requested_seconds))
+    parent_deadline = _qwen_deadline_context.get()
+    deadline = (
+        min(parent_deadline, requested_deadline)
+        if parent_deadline is not None
+        else requested_deadline
+    )
+    token = _qwen_deadline_context.set(deadline)
+    try:
+        yield
+    finally:
+        _qwen_deadline_context.reset(token)
+
+
+def _effective_deadline(settings) -> float:
+    """Return the ambient request deadline or create a bounded local one."""
+    return _qwen_deadline_context.get() or (
+        time.monotonic() + max(0.0, float(settings.qwen_invocation_budget_seconds))
+    )
+
+
+def _attempt_timeout_seconds(settings, deadline: float) -> float:
+    """Compute a per-attempt timeout without spending the request's tail room."""
+    remaining = deadline - time.monotonic()
+    safety_margin = 0.15
+    if remaining <= safety_margin:
+        raise QwenInvocationDeadlineExceeded(
+            "Qwen invocation budget exhausted before another request could start."
+        )
+    configured = min(
+        float(settings.qwen_timeout_seconds),
+        float(settings.qwen_attempt_timeout_seconds),
+    )
+    return max(0.05, min(configured, remaining - safety_margin))
+
+
+def _retry_delay_seconds(settings, attempt: int, deadline: float) -> float:
+    """Bound exponential backoff by the remaining invocation budget."""
+    desired = max(0.0, float(settings.qwen_retry_initial_delay_seconds)) * (2**attempt)
+    remaining = deadline - time.monotonic() - 0.15
+    return min(desired, max(0.0, remaining))
 
 def set_eval_context(system: str | None, persona: str | None, replicate: int | None) -> None:
     _current_system_context.set(system)
@@ -66,6 +126,32 @@ def _record_call(model: str, input_tokens: int, output_tokens: int, latency_ms: 
               f"Purpose: {purpose} | Model: {model} | "
               f"Tokens: {input_tokens} in / {output_tokens} out | "
               f"Latency: {latency_ms}ms | Cost: ${cost:.6f}")
+
+    # Function Compute forwards structured stdout/stderr to SLS.  This payload
+    # intentionally contains operational metadata only—never prompts, replies,
+    # source quotes, or workspace identifiers.
+    logger.info(
+        "volta_event=%s",
+        json.dumps(
+            {
+                "event": "qwen_call",
+                "model": model,
+                "purpose": purpose,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "latency_ms": latency_ms,
+                "cost_usd": round(cost, 8),
+                "request_id": request_id,
+                "evaluation": (
+                    {"system": sys_val, "persona": _current_persona_context.get(), "replicate": _current_replicate_context.get()}
+                    if sys_val is not None
+                    else None
+                ),
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+    )
               
     if calls is not None:
         calls.append(QwenCall(
@@ -79,23 +165,68 @@ def _record_call(model: str, input_tokens: int, output_tokens: int, latency_ms: 
         ))
 
 
-def _post_with_retry(client: httpx.Client, url: str, **kwargs) -> httpx.Response:
-    import time
-    from httpx import ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError
-    
-    max_retries = 5
-    delay = 1.0  # seconds
-    for attempt in range(max_retries):
+def _post_with_retry(
+    client: httpx.Client,
+    url: str,
+    *,
+    settings=None,
+    deadline: float | None = None,
+    **kwargs,
+) -> httpx.Response:
+    """Post with bounded retries rather than retrying beyond FC's request cap."""
+    settings = settings or get_settings()
+    deadline = deadline or _effective_deadline(settings)
+    max_attempts = max(1, int(settings.qwen_max_retries))
+    transient_errors = (
+        httpx.ConnectError,
+        httpx.ConnectTimeout,
+        httpx.ReadTimeout,
+        httpx.WriteTimeout,
+        httpx.TimeoutException,
+        httpx.NetworkError,
+    )
+
+    for attempt in range(max_attempts):
         try:
-            response = client.post(url, **kwargs)
-            return response
-        except (ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError) as e:
-            if attempt == max_retries - 1:
-                logger.error(f"HTTP post failed after {max_retries} attempts: {e}")
+            return client.post(
+                url,
+                timeout=_attempt_timeout_seconds(settings, deadline),
+                **kwargs,
+            )
+        except transient_errors as exc:
+            if attempt == max_attempts - 1:
+                logger.error("HTTP post failed after %s bounded attempts: %s", max_attempts, exc)
                 raise
-            logger.warning(f"HTTP post transient error: {e}. Retrying in {delay}s...")
+
+            delay = _retry_delay_seconds(settings, attempt, deadline)
+            if delay <= 0:
+                raise QwenInvocationDeadlineExceeded(
+                    "Qwen invocation budget exhausted while retrying a transient error."
+                ) from exc
+            logger.warning(
+                "HTTP post transient error: %s. Retrying in %.2fs within invocation budget.",
+                exc,
+                delay,
+            )
+            logger.warning(
+                "volta_event=%s",
+                json.dumps(
+                    {
+                        "event": "qwen_retry",
+                        "attempt": attempt + 1,
+                        "delay_seconds": round(delay, 3),
+                        "remaining_budget_seconds": round(max(0.0, deadline - time.monotonic()), 3),
+                        "error_type": type(exc).__name__,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                ),
+            )
             time.sleep(delay)
-            delay *= 2.0
+
+    # The loop always returns or raises, but keeping an explicit error makes
+    # future edits fail safely instead of silently issuing an unbounded call.
+    raise QwenInvocationDeadlineExceeded("Qwen request did not receive an attempt.")
 
 
 class QwenClient:
@@ -126,9 +257,12 @@ class QwenClient:
         headers = {"Authorization": f"Bearer {settings.qwen_api_key}"}
         url = f"{settings.qwen_api_base_url.rstrip('/')}/services/aigc/text-generation/generation"
 
+        deadline = _effective_deadline(settings)
         t0 = time.monotonic()
-        with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = _post_with_retry(client, url, json=payload, headers=headers)
+        with httpx.Client(timeout=settings.qwen_attempt_timeout_seconds) as client:
+            response = _post_with_retry(
+                client, url, json=payload, headers=headers, settings=settings, deadline=deadline
+            )
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -173,9 +307,12 @@ class QwenClient:
         headers = {"Authorization": f"Bearer {settings.qwen_api_key}"}
         url = f"{settings.qwen_api_base_url.rstrip('/')}/services/aigc/text-generation/generation"
 
+        deadline = _effective_deadline(settings)
         t0 = time.monotonic()
-        with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = _post_with_retry(client, url, json=payload, headers=headers)
+        with httpx.Client(timeout=settings.qwen_attempt_timeout_seconds) as client:
+            response = _post_with_retry(
+                client, url, json=payload, headers=headers, settings=settings, deadline=deadline
+            )
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -231,9 +368,12 @@ class QwenClient:
             "Content-Type": "application/json"
         }
 
+        deadline = _effective_deadline(settings)
         t0 = time.monotonic()
-        with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-            response = _post_with_retry(client, url, json=payload, headers=headers)
+        with httpx.Client(timeout=settings.qwen_attempt_timeout_seconds) as client:
+            response = _post_with_retry(
+                client, url, json=payload, headers=headers, settings=settings, deadline=deadline
+            )
             response.raise_for_status()
             data = response.json()
         latency = int((time.monotonic() - t0) * 1000)
@@ -285,16 +425,24 @@ class QwenClient:
         stream_usage = {}
         last_req_id = None
         last_len = 0
-        
-        import time as time_mod
-        from httpx import ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError
-        max_retries = 5
-        delay = 1.0
-        
-        for attempt in range(max_retries):
+        deadline = _effective_deadline(settings)
+        max_attempts = max(1, int(settings.qwen_max_retries))
+        transient_errors = (
+            httpx.ConnectError,
+            httpx.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.TimeoutException,
+            httpx.NetworkError,
+        )
+
+        for attempt in range(max_attempts):
             try:
-                with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-                    with client.stream("POST", url, json=payload, headers=headers) as response:
+                attempt_timeout = _attempt_timeout_seconds(settings, deadline)
+                with httpx.Client(timeout=attempt_timeout) as client:
+                    with client.stream(
+                        "POST", url, json=payload, headers=headers, timeout=attempt_timeout
+                    ) as response:
                         response.raise_for_status()
                         last_req_id = response.headers.get("x-request-id")
                         for line in response.iter_lines():
@@ -315,13 +463,21 @@ class QwenClient:
                                 except Exception:
                                     continue
                 break
-            except (ConnectError, ConnectTimeout, ReadTimeout, WriteTimeout, TimeoutException, NetworkError) as e:
-                if attempt == max_retries - 1:
-                    logger.error(f"HTTP stream failed after {max_retries} attempts: {e}")
+            except transient_errors as exc:
+                if attempt == max_attempts - 1:
+                    logger.error("HTTP stream failed after %s bounded attempts: %s", max_attempts, exc)
                     raise
-                logger.warning(f"HTTP stream transient error: {e}. Retrying in {delay}s...")
-                time_mod.sleep(delay)
-                delay *= 2.0
+                delay = _retry_delay_seconds(settings, attempt, deadline)
+                if delay <= 0:
+                    raise QwenInvocationDeadlineExceeded(
+                        "Qwen stream invocation budget exhausted while retrying."
+                    ) from exc
+                logger.warning(
+                    "HTTP stream transient error: %s. Retrying in %.2fs within invocation budget.",
+                    exc,
+                    delay,
+                )
+                time.sleep(delay)
 
         latency = int((time.monotonic() - t0) * 1000)
         input_toks = stream_usage.get("input_tokens", 0)
@@ -333,7 +489,9 @@ class QwenClient:
         if not settings.qwen_api_key:
             return self.complete(system_prompt, messages, purpose=purpose)
 
-        # Define tools schema
+        # The chat-time tool surface is deliberately read-only.  Durable memory
+        # writes must go through the verified, idempotent end-session lifecycle
+        # so they always have source provenance and an audit event.
         tools = [
             {
                 "type": "function",
@@ -348,26 +506,12 @@ class QwenClient:
                         "required": ["query"]
                     }
                 }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "write_memory",
-                    "description": "Save a new observation/preference to user's persistent memory store.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "observation": {"type": "string", "description": "User observation text"},
-                            "memory_type": {"type": "string", "enum": ["preference", "fact", "outcome"]}
-                        },
-                        "required": ["observation", "memory_type"]
-                    }
-                }
             }
         ]
 
         chat_history = [{"role": "system", "content": system_prompt}, *messages]
 
+        deadline = _effective_deadline(settings)
         for _ in range(3):
             payload = {
                 "model": settings.qwen_model_chat,
@@ -384,8 +528,10 @@ class QwenClient:
             url = f"{settings.qwen_api_base_url.rstrip('/')}/services/aigc/text-generation/generation"
 
             t0 = time.monotonic()
-            with httpx.Client(timeout=settings.qwen_timeout_seconds) as client:
-                response = _post_with_retry(client, url, json=payload, headers=headers)
+            with httpx.Client(timeout=settings.qwen_attempt_timeout_seconds) as client:
+                response = _post_with_retry(
+                    client, url, json=payload, headers=headers, settings=settings, deadline=deadline
+                )
                 response.raise_for_status()
                 data = response.json()
             latency = int((time.monotonic() - t0) * 1000)
@@ -423,18 +569,11 @@ class QwenClient:
                         mems = list_memories(entity_id, include_superseded=False)
                         context = build_memory_context(entity_id, mems, query_context=func_args.get("query", ""))
                         result_str = "\n".join(f"- {m.memory.observation}" for m in context.packed_memories) or "No memories found."
-                    elif func_name == "write_memory":
-                        from app.memory.store import write_memory
-                        from app.memory.models import MemoryType
-                        mem = write_memory(
-                            entity_id=entity_id,
-                            memory_type=MemoryType(func_args.get("memory_type")),
-                            observation=func_args.get("observation"),
-                            confidence=0.85
-                        )
-                        result_str = f"Successfully wrote memory: {mem.observation}"
                     else:
-                        result_str = f"Tool {func_name} not supported."
+                        result_str = (
+                            f"Tool {func_name} is not available. Memory changes are saved only "
+                            "when the user ends a consultation and the source-linked lifecycle verifies them."
+                        )
                 except Exception as e:
                     result_str = f"Error running tool: {e}"
 
@@ -452,4 +591,3 @@ class QwenClient:
 
 def get_qwen_client() -> QwenClient:
     return QwenClient()
-

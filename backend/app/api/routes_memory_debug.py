@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.auth import require_admin
 from app.db import get_connection
 from app.memory.consolidation import run_consolidation
 from app.memory.decay import apply_decay, confidence_tier
@@ -15,6 +16,11 @@ from app.memory.retrieval import build_memory_context
 from app.memory.store import list_memories
 
 router = APIRouter(tags=["memory"])
+
+
+def _require_legacy_admin_in_production(request: Request) -> None:
+    if get_settings().app_env == "production":
+        require_admin(request)
 
 
 class MemoryItem(BaseModel):
@@ -32,7 +38,8 @@ class MemoryItem(BaseModel):
 
 
 @router.get("/entities/{entity_id}/memories")
-def get_memories(entity_id: str) -> dict:
+def get_memories(entity_id: str, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     memories = list_memories(entity_id, include_superseded=True)
     payload = []
     for memory in memories:
@@ -56,7 +63,8 @@ def get_memories(entity_id: str) -> dict:
 
 
 @router.get("/entities/{entity_id}/memories/active-context")
-def get_active_context(entity_id: str, query: str = Query(default="")) -> dict:
+def get_active_context(entity_id: str, request: Request, query: str = Query(default="")) -> dict:
+    _require_legacy_admin_in_production(request)
     settings = get_settings()
     memories = list_memories(entity_id, include_superseded=False)
     context = build_memory_context(entity_id, memories, query_context=query)
@@ -78,7 +86,8 @@ def get_active_context(entity_id: str, query: str = Query(default="")) -> dict:
 
 
 @router.get("/messages/{message_id}/explain")
-def get_explain_trace(message_id: UUID) -> dict:
+def get_explain_trace(message_id: UUID, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -120,7 +129,8 @@ def get_explain_trace(message_id: UUID) -> dict:
 
 
 @router.get("/entities/{entity_id}/consolidation-log")
-def get_consolidation_log(entity_id: str) -> dict:
+def get_consolidation_log(entity_id: str, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -158,14 +168,17 @@ def get_consolidation_log(entity_id: str) -> dict:
 
 
 @router.post("/entities/{entity_id}/consolidation/run")
-def trigger_consolidation(entity_id: str) -> dict:
+def trigger_consolidation(entity_id: str, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     result = run_consolidation(entity_id)
     return result.model_dump()
 
 
 @router.post("/entities/{entity_id}/reset")
-def reset_entity_data(entity_id: str) -> dict:
+def reset_entity_data(entity_id: str, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     with get_connection() as conn:
+        conn.execute("DELETE FROM memory_lifecycle_events WHERE entity_id = %s", (entity_id,))
         conn.execute(
             """
             DELETE FROM explain_traces 
@@ -194,7 +207,8 @@ def reset_entity_data(entity_id: str) -> dict:
 
 
 @router.post("/entities/{entity_id}/reseed")
-def reseed_entity_data(entity_id: str) -> dict:
+def reseed_entity_data(entity_id: str, request: Request) -> dict:
+    _require_legacy_admin_in_production(request)
     from app.utils.seeder import seed_entity
     seed_entity(entity_id)
     return {"status": "success", "message": f"Successfully reseeded data for entity '{entity_id}'"}

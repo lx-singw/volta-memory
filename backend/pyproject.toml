@@ -22,7 +22,7 @@ dev = [
     "ruff>=0.4.0",
 ]
 alibaba = [
-    "alibabacloud-ecs20140526>=4.0.0",
+    "alibabacloud-fc20230330>=4.0.0",
     "alibabacloud-tea-openapi>=0.3.0",
 ]
 

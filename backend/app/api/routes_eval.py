@@ -4,11 +4,19 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Request
+
+from app.auth import require_admin
+from app.config import get_settings
 
 router = APIRouter(prefix="/eval", tags=["eval"])
 
 _RUNS: dict[str, dict] = {}
+
+
+def _require_eval_admin_in_production(request: Request) -> None:
+    if get_settings().app_env == "production":
+        require_admin(request)
 
 
 def _run_eval_job(run_id: str) -> None:
@@ -24,7 +32,8 @@ def _run_eval_job(run_id: str) -> None:
 
 
 @router.post("/run", status_code=202)
-def start_eval_run(background_tasks: BackgroundTasks) -> dict:
+def start_eval_run(background_tasks: BackgroundTasks, request: Request) -> dict:
+    _require_eval_admin_in_production(request)
     run_id = str(uuid4())
     _RUNS[run_id] = {"status": "running"}
     background_tasks.add_task(_run_eval_job, run_id)
@@ -32,14 +41,16 @@ def start_eval_run(background_tasks: BackgroundTasks) -> dict:
 
 
 @router.get("/runs/{run_id}/results")
-def get_eval_results(run_id: str) -> dict:
+def get_eval_results(run_id: str, request: Request) -> dict:
+    _require_eval_admin_in_production(request)
     if run_id not in _RUNS:
         return {"run_id": run_id, "status": "not_found"}
     return {"run_id": run_id, **_RUNS[run_id]}
 
 
 @router.get("/importance-validation")
-def get_importance_validation() -> dict:
+def get_importance_validation(request: Request) -> dict:
+    _require_eval_admin_in_production(request)
     from eval.importance_validation import run_importance_validation
 
     return run_importance_validation()

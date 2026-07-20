@@ -18,6 +18,17 @@ class MemoryType(str, Enum):
     CONSOLIDATED = "consolidated"
 
 
+class ProfileSlot(str, Enum):
+    """Stable product-facing slots used by the energy profile, never inferred in the UI."""
+
+    MONTHLY_BILL = "monthly_bill"
+    BACKUP_PRIORITY = "backup_priority"
+    ROOF_HOME = "roof_home"
+    BUDGET = "budget"
+    TARIFF = "tariff"
+    NONE = "none"
+
+
 class ConfidenceTier(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
@@ -44,6 +55,7 @@ class Memory(BaseModel):
     plausibility_flag: str = "plausible"
     consolidation_source_ids: list[UUID] | None = None
     source: str = "individual"
+    profile_slot: ProfileSlot = ProfileSlot.NONE
 
 
 class MemoryDraft(BaseModel):
@@ -54,6 +66,7 @@ class MemoryDraft(BaseModel):
     importance_score: float | None = None
     importance_reasoning: str | None = None
     source: str = "individual"
+    profile_slot: ProfileSlot = ProfileSlot.NONE
 
 
 class ScoredMemory(BaseModel):

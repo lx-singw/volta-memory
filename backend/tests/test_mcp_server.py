@@ -50,7 +50,7 @@ def test_mcp_server_stdio():
     tools = resp["result"]["tools"]
     tool_names = [t["name"] for t in tools]
     assert "get_memory_context" in tool_names
-    assert "write_memory" in tool_names
+    assert "write_memory" not in tool_names
 
     # Clean up process
     proc.terminate()

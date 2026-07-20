@@ -1,12 +1,15 @@
-"""Model Context Protocol (MCP) Server for Volta Memory Engine."""
+"""Read-only Model Context Protocol server for offline Volta inspection.
+
+It is not part of the browser/API deployment path.  Durable memory mutation is
+intentionally unavailable here: public product writes must use the verified,
+idempotent end-session lifecycle in the FastAPI service.
+"""
 
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
-from uuid import UUID
 
 # Setup PYTHONPATH dynamically so it can import app modules
 mcp_dir = Path(__file__).resolve().parent
@@ -18,10 +21,9 @@ sys.path.append(str(backend_path))
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=repo_root / ".env")
 
-from app.memory.store import list_memories, write_memory
+from app.memory.store import list_memories
 from app.memory.retrieval import build_memory_context
 from app.memory.clarification import compute_dialogue_action
-from app.memory.models import MemoryType
 
 
 def log_debug(msg: str) -> None:
@@ -76,23 +78,6 @@ def handle_tools_list(request_id: int | str) -> dict:
                             "topic": {"type": "string", "description": "The topic or observation check target"}
                         },
                         "required": ["entity_id", "topic"]
-                    }
-                },
-                {
-                    "name": "write_memory",
-                    "description": "Write a new observation to the user's persistent memory store, with automatic contradiction resolving.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "entity_id": {"type": "string", "description": "The unique ID of the user"},
-                            "observation": {"type": "string", "description": "Plain language user observation to store"},
-                            "memory_type": {
-                                "type": "string", 
-                                "enum": ["preference", "fact", "outcome"],
-                                "description": "The categorical type of memory"
-                            }
-                        },
-                        "required": ["entity_id", "observation", "memory_type"]
                     }
                 }
             ]
@@ -157,35 +142,6 @@ def handle_tools_call(request_id: int | str, params: dict) -> dict:
                 }
             }
 
-        elif name == "write_memory":
-            observation = args.get("observation")
-            m_type_str = args.get("memory_type")
-            
-            if not observation or not m_type_str:
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32602, "message": "Missing observation or memory_type"}
-                }
-                
-            m_type = MemoryType(m_type_str)
-            # Write to database (wired with contradiction resolution when called from pipeline context,
-            # or directly inserted here as simple write)
-            mem = write_memory(
-                entity_id=entity_id,
-                memory_type=m_type,
-                observation=observation,
-                confidence=0.85
-            )
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "content": [{"type": "text", "text": f"Successfully wrote memory ID: {mem.id}"}],
-                    "isError": False
-                }
-            }
-            
         else:
             return {
                 "jsonrpc": "2.0",

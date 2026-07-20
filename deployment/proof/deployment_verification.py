@@ -1,52 +1,75 @@
 #!/usr/bin/env python3
-"""Proof of Alibaba Cloud deployment — calls a real Alibaba Cloud SDK method."""
+"""Verify the deployed Function Compute function and public health endpoint.
+
+This script makes a real Function Compute 3.0 SDK call. It prints only
+non-sensitive deployment metadata, then checks the public API Gateway health
+endpoint. Use it in the Alibaba deployment proof recording.
+"""
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+from urllib.error import URLError
+from urllib.request import urlopen
+
+
+def required(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ValueError(f"Set {name} before running deployment verification.")
+    return value
 
 
 def main() -> int:
-    access_key_id = os.environ.get("ALIBABA_ACCESS_KEY_ID", "")
-    access_key_secret = os.environ.get("ALIBABA_ACCESS_KEY_SECRET", "")
-    region = os.environ.get("ALIBABA_REGION", "ap-southeast-1")
-    instance_id = os.environ.get("ALIBABA_ECS_INSTANCE_ID", "")
-    rds_instance_id = os.environ.get("ALIBABA_RDS_INSTANCE_ID", "")
-
-    if not access_key_id or not access_key_secret:
-        print("Set ALIBABA_ACCESS_KEY_ID and ALIBABA_ACCESS_KEY_SECRET to run verification.")
-        return 1
+    try:
+        access_key_id = required("ALIBABA_ACCESS_KEY_ID")
+        access_key_secret = required("ALIBABA_ACCESS_KEY_SECRET")
+        endpoint = required("ALIBABA_FC_ENDPOINT")
+        function_name = required("ALIBABA_FC_FUNCTION_NAME")
+        health_url = required("VOLTA_PUBLIC_HEALTH_URL")
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
 
     try:
-        from alibabacloud_ecs20140526.client import Client as EcsClient
+        from alibabacloud_fc20230330.client import Client as FcClient
+        from alibabacloud_fc20230330 import models as fc_models
         from alibabacloud_tea_openapi import models as open_api_models
-        from alibabacloud_ecs20140526 import models as ecs_models
     except ImportError:
-        print("Install Alibaba SDK: pip install -e '.[alibaba]'")
-        return 1
+        print("Install proof dependencies with: pip install -e 'backend[alibaba]'", file=sys.stderr)
+        return 2
 
     config = open_api_models.Config(
         access_key_id=access_key_id,
         access_key_secret=access_key_secret,
-        region_id=region,
+        endpoint=endpoint,
     )
-    client = EcsClient(config)
+    try:
+        response = FcClient(config).get_function(function_name, fc_models.GetFunctionRequest())
+        body = response.body
+    except Exception as exc:
+        print(f"Function Compute verification failed: {type(exc).__name__}", file=sys.stderr)
+        return 1
 
-    request = ecs_models.DescribeInstancesRequest(region_id=region)
-    if instance_id:
-        request.instance_ids = f'["{instance_id}"]'
+    print("Function Compute SDK verification succeeded.")
+    print(f"  function={getattr(body, 'function_name', function_name)}")
+    print(f"  runtime={getattr(body, 'runtime', 'unknown')}")
+    print(f"  state={getattr(body, 'state', 'unknown')}")
+    print(f"  last_modified={getattr(body, 'last_modified_time', 'unknown')}")
 
-    response = client.describe_instances(request)
-    instances = response.body.instances.instance or []
-    print(f"Alibaba Cloud ECS API call succeeded in region {region}.")
-    print(f"Instances returned: {len(instances)}")
-    for inst in instances[:3]:
-        print(f"  - {inst.instance_id} status={inst.status}")
+    try:
+        with urlopen(health_url, timeout=15) as response:  # nosec B310: release URL is explicit env input
+            payload = json.loads(response.read().decode("utf-8"))
+        if payload.get("status") != "ok":
+            raise RuntimeError(f"unexpected health payload: {payload}")
+    except (URLError, OSError, ValueError, RuntimeError) as exc:
+        print(f"Public health verification failed: {type(exc).__name__}", file=sys.stderr)
+        return 1
 
-    if rds_instance_id:
-        print(f"Configured RDS instance id: {rds_instance_id}")
-
+    print(f"Public API health verification succeeded: {health_url}")
+    print(f"  database={payload.get('database', 'unknown')}")
     return 0
 
 

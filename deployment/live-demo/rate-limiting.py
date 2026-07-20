@@ -1,4 +1,9 @@
-"""Basic rate limiting for the public live demo instance."""
+"""Local policy fixture for the public edge.
+
+Production throttling is configured at Alibaba Cloud API Gateway, where it can
+be applied before Function Compute and Qwen are invoked. This helper remains
+useful for local smoke tests; it never resets or shares a demo workspace.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,7 @@ from typing import Deque
 
 class RateLimiter:
     def __init__(self, max_requests: int | None = None, window_seconds: int = 3600):
-        self.max_requests = max_requests or int(os.environ.get("LIVE_DEMO_RATE_LIMIT_PER_IP", "20"))
+        self.max_requests = max_requests or int(os.environ.get("API_GATEWAY_RATE_LIMIT_PER_IP", "10"))
         self.window_seconds = window_seconds
         self._hits: dict[str, Deque[float]] = defaultdict(deque)
 
@@ -23,7 +28,3 @@ class RateLimiter:
             return False
         hits.append(now)
         return True
-
-
-def demo_entity_reset_hours() -> int:
-    return int(os.environ.get("LIVE_DEMO_DEMO_ENTITY_RESET_HOURS", "24"))

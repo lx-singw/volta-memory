@@ -165,18 +165,18 @@ frontend/app/
 ```
 deployment/
 ├── alibaba/
-│   ├── ecs-setup.md               # Step-by-step ECS provisioning notes
-│   ├── function-compute.yaml      # Alternative: serverless deployment config
-│   └── rds-postgres-setup.md       # Alibaba RDS Postgres provisioning
+│   ├── production-operations.md   # OSS/CDN -> API Gateway -> FC release runbook
+│   ├── edge-policies.example.json # Gateway CORS/throttling/security checklist
+│   ├── function-compute.yaml      # Pointer to root FC 3.0 Serverless Devs config
+│   ├── rds-postgres-setup.md      # Alibaba RDS Postgres provisioning
+│   └── ecs-setup.md               # Explicitly legacy; not submission topology
 │
 └── proof/
     └── deployment_verification.py  # Standalone script proving Alibaba Cloud 
                                      # API usage — this is the file linked in 
                                      # the submission's "Proof of Alibaba Cloud 
                                      # Deployment" requirement
-                                     # Calls an Alibaba Cloud SDK method 
-                                     # (e.g. ECS DescribeInstances or OSS 
-                                     # bucket check) and prints confirmation
+                                     # Verifies Function Compute and gateway health
 ```
 
 ---
@@ -441,4 +441,3 @@ Makefile                                    # `make demo` — runs docker-compos
                                            # empty by design) AND opens the 
                                            # frontend URL
 ```
-

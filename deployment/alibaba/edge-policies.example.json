@@ -1,0 +1,26 @@
+{
+  "purpose": "Operator template: configure these policies in Alibaba Cloud API Gateway before public cutover. This file is not an applied cloud resource.",
+  "gateway": {
+    "publicAppOrigin": "https://app.example.com",
+    "publicApiOrigin": "https://api.example.com",
+    "backend": "Function Compute 3.0 HTTP trigger via the gateway integration",
+    "cors": {
+      "allowOrigins": ["https://app.example.com"],
+      "allowMethods": ["GET", "POST", "DELETE", "OPTIONS"],
+      "allowHeaders": ["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
+      "allowCredentials": true
+    },
+    "routes": [
+      {
+        "path": "/v1/*",
+        "rateLimit": {"requestsPerSecond": 10, "responseStatus": 429},
+        "concurrencyLimit": {"maxConcurrentRequests": 10, "responseStatus": 429}
+      },
+      {
+        "path": "/health",
+        "rateLimit": {"requestsPerSecond": 2, "responseStatus": 429}
+      }
+    ],
+    "logging": "Enable gateway access/error logs and retain request IDs in SLS."
+  }
+}

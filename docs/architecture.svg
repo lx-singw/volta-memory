@@ -1,150 +1,76 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" width="100%" height="100%" style="background-color: #020617; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
-  <!-- Definitions for gradients and shadows -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">Volta Memory production architecture</title>
+  <desc id="desc">A static OSS and CDN frontend calls API Gateway, which routes to Function Compute and Qwen Cloud and persists memory in RDS PostgreSQL with pgvector. SLS receives logs and Secrets Manager supplies runtime secrets through a least-privilege RAM role.</desc>
   <defs>
-    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#3b82f6" />
-    </linearGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fef08a" />
-      <stop offset="100%" stop-color="#facc15" />
-    </linearGradient>
-    <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" />
-      <stop offset="100%" stop-color="#0f172a" />
-    </linearGradient>
-    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#c084fc" />
-      <stop offset="100%" stop-color="#818cf8" />
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.5" />
-    </filter>
+    <style>
+      .bg { fill: #07111f; } .surface { fill: #10233a; stroke: #284865; stroke-width: 2; }
+      .edge { fill: none; stroke: #6e8da8; stroke-width: 3; marker-end: url(#arrow); }
+      .title { fill: #f6f8fb; font: 700 34px Inter, Arial, sans-serif; }
+      .subtitle { fill: #a5bdd2; font: 400 18px Inter, Arial, sans-serif; }
+      .heading { fill: #f6f8fb; font: 700 19px Inter, Arial, sans-serif; text-anchor: middle; }
+      .detail { fill: #b8c9d9; font: 400 14px Inter, Arial, sans-serif; text-anchor: middle; }
+      .tag { fill: #fbbf24; font: 700 12px Inter, Arial, sans-serif; text-anchor: middle; letter-spacing: 1.2px; }
+      .green { stroke: #4ade80; } .cyan { stroke: #22d3ee; } .gold { stroke: #fbbf24; } .violet { stroke: #a78bfa; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#6e8da8"/></marker>
   </defs>
+  <rect class="bg" width="1400" height="820" rx="28"/>
+  <text class="title" x="60" y="68">Volta Memory</text>
+  <text class="subtitle" x="60" y="100">Source-linked, versioned memory for auditable home-energy advice</text>
 
-  <!-- Title & Frame -->
-  <text x="30" y="45" font-size="24" font-weight="700" fill="#f8fafc" letter-spacing="-0.02em">Volta Memory Engine</text>
-  <text x="30" y="70" font-size="14" font-weight="500" fill="#94a3b8">Verifiable memory-quality layer for long-term agent context</text>
+  <path class="edge" d="M 300 250 H 405"/>
+  <path class="edge" d="M 625 250 H 730"/>
+  <path class="edge" d="M 900 325 V 510"/>
+  <path class="edge" d="M 1070 250 H 1165"/>
+  <path class="edge" d="M 900 325 C 930 410, 1010 445, 1115 500"/>
+  <path class="edge" d="M 720 640 H 815"/>
 
-  <!-- Connectors / Paths -->
-  <g stroke="#334155" stroke-width="2" fill="none" opacity="0.6">
-    <!-- Frontend -> Backend -->
-    <path d="M 190 190 L 320 190" marker-end="url(#arrow)" />
-    <!-- Backend -> DB -->
-    <path d="M 430 250 L 430 480" />
-    <!-- Backend -> Qwen -->
-    <path d="M 540 190 L 730 190" />
-    <!-- MCP -> Backend -->
-    <path d="M 190 320 L 320 220" />
+  <g transform="translate(60 185)">
+    <rect class="surface cyan" width="240" height="130" rx="18"/>
+    <text class="tag" x="120" y="30">PUBLIC EXPERIENCE</text>
+    <text class="heading" x="120" y="67">OSS + CDN</text>
+    <text class="detail" x="120" y="95">Static Next.js export</text>
+    <text class="detail" x="120" y="116">runtime-config.js</text>
+  </g>
+  <g transform="translate(405 185)">
+    <rect class="surface gold" width="220" height="130" rx="18"/>
+    <text class="tag" x="110" y="30">PUBLIC API EDGE</text>
+    <text class="heading" x="110" y="67">API Gateway</text>
+    <text class="detail" x="110" y="95">Exact CORS</text>
+    <text class="detail" x="110" y="116">Rate + concurrency limits</text>
+  </g>
+  <g transform="translate(730 165)">
+    <rect class="surface green" width="340" height="160" rx="18"/>
+    <text class="tag" x="170" y="30">RUNTIME</text>
+    <text class="heading" x="170" y="68">Function Compute 3.0 + FastAPI</text>
+    <text class="detail" x="170" y="99">session lifecycle · retrieval · explain trace</text>
+    <text class="detail" x="170" y="123">source verification · corrections · memory writes</text>
+  </g>
+  <g transform="translate(1165 185)">
+    <rect class="surface gold" width="180" height="130" rx="18"/>
+    <text class="tag" x="90" y="30">INFERENCE</text>
+    <text class="heading" x="90" y="67">Qwen Cloud</text>
+    <text class="detail" x="90" y="95">chat · extraction</text>
+    <text class="detail" x="90" y="116">classification · embeddings</text>
+  </g>
+  <g transform="translate(680 510)">
+    <rect class="surface cyan" width="440" height="150" rx="18"/>
+    <text class="tag" x="220" y="30">PERSISTENT MEMORY</text>
+    <text class="heading" x="220" y="67">ApsaraDB RDS PostgreSQL + pgvector</text>
+    <text class="detail" x="220" y="97">sessions · messages · memories · provenance</text>
+    <text class="detail" x="220" y="120">relations · lifecycle events · explain traces</text>
+  </g>
+  <g transform="translate(160 570)">
+    <rect class="surface violet" width="360" height="100" rx="18"/>
+    <text class="tag" x="180" y="29">SECRETS + IDENTITY</text>
+    <text class="heading" x="180" y="62">Secrets Manager + RAM role</text>
+    <text class="detail" x="180" y="84">least-privilege runtime access</text>
+  </g>
+  <g transform="translate(815 690)">
+    <rect class="surface violet" width="260" height="82" rx="18"/>
+    <text class="tag" x="130" y="29">OBSERVABILITY</text>
+    <text class="heading" x="130" y="60">SLS logs + metrics</text>
   </g>
 
-  <!-- Marker Definition -->
-  <svg>
-    <defs>
-      <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-        <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-      </marker>
-    </defs>
-  </svg>
-
-  <!-- 1. Frontend Layer -->
-  <g transform="translate(30, 130)" filter="url(#shadow)">
-    <rect width="160" height="90" rx="8" fill="url(#boxGrad)" stroke="#38bdf8" stroke-width="1.5" />
-    <text x="80" y="35" fill="#f8fafc" font-size="14" font-weight="600" text-anchor="middle">Next.js Frontend</text>
-    <text x="80" y="55" fill="#64748b" font-size="11" text-anchor="middle">hosted on Alibaba OSS</text>
-    <rect x="25" y="65" width="110" height="16" rx="4" fill="#0c4a6e" />
-    <text x="80" y="77" fill="#38bdf8" font-size="10" font-weight="600" text-anchor="middle">Solar Concierge UI</text>
-  </g>
-
-  <!-- 2. MCP Server Gateway -->
-  <g transform="translate(30, 260)" filter="url(#shadow)">
-    <rect width="160" height="90" rx="8" fill="url(#boxGrad)" stroke="#c084fc" stroke-width="1.5" />
-    <text x="80" y="35" fill="#f8fafc" font-size="14" font-weight="600" text-anchor="middle">MCP Server</text>
-    <text x="80" y="55" fill="#64748b" font-size="11" text-anchor="middle">Standard over stdio</text>
-    <rect x="25" y="65" width="110" height="16" rx="4" fill="#4c1d95" />
-    <text x="80" y="77" fill="#c084fc" font-size="10" font-weight="600" text-anchor="middle">get_memory_context</text>
-  </g>
-
-  <!-- 3. Deployed Backend (FC 3.0) -->
-  <g transform="translate(320, 130)" filter="url(#shadow)">
-    <rect width="220" height="120" rx="8" fill="url(#boxGrad)" stroke="#3b82f6" stroke-width="2" />
-    <rect x="-1" y="-1" width="60" height="18" rx="4" fill="#3b82f6" />
-    <text x="29" y="12" fill="#f8fafc" font-size="9" font-weight="700" text-anchor="middle">FASTAPI</text>
-    <text x="110" y="40" fill="#f8fafc" font-size="16" font-weight="700" text-anchor="middle">FastAPI Backend</text>
-    <text x="110" y="60" fill="#94a3b8" font-size="11" text-anchor="middle">Alibaba FC 3.0 Serverless</text>
-    <path d="M 20 80 L 200 80" stroke="#334155" stroke-width="1" />
-    <text x="110" y="100" fill="#38bdf8" font-size="11" font-weight="600" text-anchor="middle">Memory Engine Pipeline</text>
-  </g>
-
-  <!-- 4. Memory Pipeline Detail Box -->
-  <g transform="translate(250, 290)" filter="url(#shadow)">
-    <rect width="360" height="170" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1.5" />
-    <text x="180" y="25" fill="#94a3b8" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0.05em">COGNITIVE LIFECYCLE PIPELINE</text>
-    
-    <!-- Extraction -->
-    <g transform="translate(20, 45)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1" />
-      <text x="45" y="24" fill="#38bdf8" font-size="11" font-weight="600" text-anchor="middle">1. Extraction</text>
-    </g>
-    <!-- Contradiction -->
-    <g transform="translate(135, 45)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#facc15" stroke-width="1" />
-      <text x="45" y="24" fill="#facc15" font-size="11" font-weight="600" text-anchor="middle">2. Revision</text>
-    </g>
-    <!-- Importance -->
-    <g transform="translate(250, 45)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#c084fc" stroke-width="1" />
-      <text x="45" y="24" fill="#c084fc" font-size="11" font-weight="600" text-anchor="middle">3. Importance</text>
-    </g>
-    <!-- Decay -->
-    <g transform="translate(20, 105)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#f87171" stroke-width="1" />
-      <text x="45" y="24" fill="#f87171" font-size="11" font-weight="600" text-anchor="middle">4. Decay</text>
-    </g>
-    <!-- Retrieval -->
-    <g transform="translate(135, 105)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#4ade80" stroke-width="1" />
-      <text x="45" y="24" fill="#4ade80" font-size="11" font-weight="600" text-anchor="middle">5. Retrieval</text>
-    </g>
-    <!-- Explain -->
-    <g transform="translate(250, 105)">
-      <rect width="90" height="40" rx="6" fill="#1e293b" stroke="#2dd4bf" stroke-width="1" />
-      <text x="45" y="24" fill="#2dd4bf" font-size="11" font-weight="600" text-anchor="middle">6. Explain</text>
-    </g>
-
-    <!-- Connectors inside pipeline -->
-    <path d="M 110 65 L 135 65" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
-    <path d="M 225 65 L 250 65" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
-    <path d="M 110 125 L 135 125" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
-    <path d="M 225 125 L 250 125" stroke="#475569" stroke-width="1" fill="none" marker-end="url(#arrow)" />
-  </g>
-
-  <!-- 5. Database Layer (Postgres + pgvector) -->
-  <g transform="translate(320, 490)" filter="url(#shadow)">
-    <rect width="220" height="110" rx="8" fill="url(#boxGrad)" stroke="#10b981" stroke-width="1.5" />
-    <text x="110" y="30" fill="#f8fafc" font-size="15" font-weight="700" text-anchor="middle">ApsaraDB RDS</text>
-    <text x="110" y="50" fill="#94a3b8" font-size="11" text-anchor="middle">PostgreSQL Serverless</text>
-    <rect x="20" y="65" width="85" height="20" rx="4" fill="#064e3b" />
-    <text x="62" y="78" fill="#10b981" font-size="10" font-weight="700" text-anchor="middle">pgvector</text>
-    <rect x="115" y="65" width="85" height="20" rx="4" fill="#064e3b" />
-    <text x="157" y="78" fill="#10b981" font-size="10" font-weight="700" text-anchor="middle">Evidence JSONB</text>
-  </g>
-
-  <!-- 6. Qwen Cloud Inference (DashScope) -->
-  <g transform="translate(730, 130)" filter="url(#shadow)">
-    <rect width="220" height="120" rx="8" fill="url(#boxGrad)" stroke="#facc15" stroke-width="2" />
-    <rect x="-1" y="-1" width="80" height="18" rx="4" fill="#facc15" />
-    <text x="40" y="12" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">INFERENCE</text>
-    <text x="110" y="40" fill="#f8fafc" font-size="16" font-weight="700" text-anchor="middle">Qwen Cloud</text>
-    <text x="110" y="60" fill="#94a3b8" font-size="11" text-anchor="middle">DashScope LLM API</text>
-    
-    <path d="M 20 75 L 200 75" stroke="#334155" stroke-width="1" />
-    
-    <text x="110" y="92" fill="#facc15" font-size="10" font-weight="600" text-anchor="middle">qwen-max (Inference &amp; Check)</text>
-    <text x="110" y="108" fill="#facc15" font-size="10" font-weight="600" text-anchor="middle">text-embedding-v2</text>
-  </g>
+  <text class="subtitle" x="60" y="756">Direct Function Compute public access is disabled after API Gateway cutover. Static assets never contain Qwen or database credentials.</text>
 </svg>

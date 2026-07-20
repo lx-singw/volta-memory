@@ -9,7 +9,16 @@ def seed_entity(entity_id: str):
     time_s2 = now - timedelta(days=3)
 
     with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO entities (id, entity_type, is_read_only)
+            VALUES (%s, 'showcase', true)
+            ON CONFLICT (id) DO UPDATE SET entity_type = 'showcase', is_read_only = true, updated_at = now()
+            """,
+            (entity_id,),
+        )
         # 1. Clean up existing demo data
+        conn.execute("DELETE FROM memory_lifecycle_events WHERE entity_id = %s", (entity_id,))
         conn.execute(
             """
             DELETE FROM explain_traces 
@@ -67,8 +76,8 @@ def seed_entity(entity_id: str):
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source, created_at
-            ) VALUES (%s, %s, 'fact', 'User has a monthly bill of R3,200', %s, 0.90, 1, 1, %s, %s, %s, 0.85, 'Direct financial context for sizing', 'plausible', 'individual', %s)
+                plausibility_flag, source, profile_slot, created_at
+            ) VALUES (%s, %s, 'fact', 'User has a monthly bill of R3,200', %s, 0.90, 1, 1, %s, %s, %s, 0.85, 'Direct financial context for sizing', 'plausible', 'individual', 'monthly_bill', %s)
             """,
             (
                 mem1_bill_id, entity_id,
@@ -84,8 +93,8 @@ def seed_entity(entity_id: str):
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source, created_at
-            ) VALUES (%s, %s, 'preference', 'Backup power is user''s primary motivation', %s, 0.95, 1, 1, %s, %s, %s, 0.95, 'Primary driver of energy system choice', 'plausible', 'individual', %s)
+                plausibility_flag, source, profile_slot, created_at
+            ) VALUES (%s, %s, 'preference', 'Backup power is user''s primary motivation', %s, 0.95, 1, 1, %s, %s, %s, 0.95, 'Primary driver of energy system choice', 'plausible', 'individual', 'backup_priority', %s)
             """,
             (
                 mem1_pref_id, entity_id,
@@ -101,8 +110,8 @@ def seed_entity(entity_id: str):
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source, created_at
-            ) VALUES (%s, %s, 'fact', 'User has a pet parrot named Charlie who likes to sing', %s, 0.80, 1, 1, %s, %s, %s, 0.10, 'Irrelevant personal detail', 'plausible', 'individual', %s)
+                plausibility_flag, source, profile_slot, created_at
+            ) VALUES (%s, %s, 'fact', 'User has a pet parrot named Charlie who likes to sing', %s, 0.80, 1, 1, %s, %s, %s, 0.10, 'Irrelevant personal detail', 'plausible', 'individual', 'none', %s)
             """,
             (
                 mem1_pet_id, entity_id,
@@ -140,8 +149,8 @@ def seed_entity(entity_id: str):
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source, created_at
-            ) VALUES (%s, %s, 'correction', 'User has a monthly bill of R3,800', %s, 0.95, 1, 1, %s, %s, %s, 0.90, 'Updated monthly bill context', 'plausible', 'individual', %s)
+                plausibility_flag, source, profile_slot, created_at
+            ) VALUES (%s, %s, 'correction', 'User has a monthly bill of R3,800', %s, 0.95, 1, 1, %s, %s, %s, 0.90, 'Updated monthly bill context', 'plausible', 'individual', 'monthly_bill', %s)
             """,
             (
                 mem2_bill_id, entity_id,
@@ -175,4 +184,56 @@ def seed_entity(entity_id: str):
             WHERE id = %s
             """,
             (time_s2, mem1_pref_id)
+        )
+
+        # Persist only verified source provenance, rather than relying on raw evidence JSON.
+        provenance_rows = [
+            (mem1_bill_id, s1_id, "My bill is R3,200", 3, False),
+            (mem1_pref_id, s1_id, "backup power is my absolute priority", 3, False),
+            (mem1_pet_id, s1_id, "I also have a pet parrot named Charlie who loves to sing", 3, False),
+            (mem2_bill_id, s2_id, "Actually, my bill is more like R3,800 on average now.", 3, False),
+        ]
+        for memory_id, source_session_id, quote, turn_index, is_constraint in provenance_rows:
+            source_message = conn.execute(
+                """
+                SELECT id FROM messages
+                WHERE conversation_id = %s AND role = 'user' AND position(%s IN content) > 0
+                ORDER BY created_at ASC LIMIT 1
+                """,
+                (source_session_id, quote),
+            ).fetchone()
+            conn.execute(
+                """
+                INSERT INTO memory_provenance (
+                    id, memory_id, original_user_message_id, source_session_id,
+                    source_turn_index, source_quote, source_verified, is_constraint
+                ) VALUES (%s, %s, %s, %s, %s, %s, true, %s)
+                ON CONFLICT (memory_id) DO UPDATE SET
+                    original_user_message_id = EXCLUDED.original_user_message_id,
+                    source_session_id = EXCLUDED.source_session_id,
+                    source_turn_index = EXCLUDED.source_turn_index,
+                    source_quote = EXCLUDED.source_quote,
+                    source_verified = true,
+                    is_constraint = EXCLUDED.is_constraint
+                """,
+                (uuid4(), memory_id, source_message["id"], source_session_id, turn_index, quote, is_constraint),
+            )
+        conn.execute(
+            """
+            INSERT INTO memory_relations (id, source_memory_id, target_memory_id, relation_type, source_session_id)
+            VALUES (%s, %s, %s, 'supersedes', %s)
+            ON CONFLICT (source_memory_id, target_memory_id, relation_type) DO NOTHING
+            """,
+            (uuid4(), mem1_bill_id, mem2_bill_id, s2_id),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_lifecycle_events (
+                id, entity_id, session_id, action, before_memory_id, after_memory_id, display_payload
+            ) VALUES (%s, %s, %s, 'corrected', %s, %s, %s)
+            """,
+            (
+                uuid4(), entity_id, s2_id, mem1_bill_id, mem2_bill_id,
+                json.dumps({"operation": "corrected", "before": {"id": str(mem1_bill_id), "observation": "User has a monthly bill of R3,200"}, "after": {"id": str(mem2_bill_id), "observation": "User has a monthly bill of R3,800"}}),
+            ),
         )

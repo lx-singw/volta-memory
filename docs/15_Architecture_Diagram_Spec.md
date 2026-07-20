@@ -23,17 +23,19 @@ The submission requirement asks specifically for a diagram showing "how Qwen Clo
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend — Next.js"]
+    subgraph Frontend["OSS + CDN — static Next.js"]
         UI[Chat Interface]
         MTV[Memory Transparency View]
-        SM[StreamingMessage Component]
     end
 
-    subgraph Backend["Backend — FastAPI, Alibaba-hosted"]
+    subgraph Edge["Alibaba Cloud API Gateway"]
+        Gateway[HTTPS, exact CORS, throttling]
+    end
+
+    subgraph Backend["Function Compute 3.0 — FastAPI"]
         API[API Routes]
         SESSION[Session Manager]
         MEM[Memory Engine]
-        MCP[MCP Server]
     end
 
     subgraph MemoryEngine["Memory Engine Detail"]
@@ -59,9 +61,9 @@ graph TB
         POPTABLE[(population_patterns)]
     end
 
-    UI --> API
-    SM --> API
-    MTV --> API
+    UI --> Gateway
+    MTV --> Gateway
+    Gateway --> API
     API --> SESSION
     SESSION --> MEM
     MEM --> STORE
@@ -75,9 +77,6 @@ graph TB
     SESSION --> CONVTABLE
     SESSION --> MSGTABLE
     HYBRID --> POPTABLE
-    API --> MCP
-    MCP -->|tool calls| CHAT
-    MCP -->|embedding requests| EMBED
     SESSION -->|complete/complete_stream| CHAT
     SESSION -->|native tool calling| TOOLCALL
     IMPORTANCE -->|scoring calls| CHAT
@@ -131,19 +130,27 @@ graph LR
     end
 
     subgraph Alibaba["Alibaba Cloud"]
-        subgraph ECS["ECS Instance"]
-            App[FastAPI + MCP Server]
+        CDN[OSS static site + CDN]
+        Gateway[API Gateway\nexact CORS + throttling]
+        subgraph FC["Function Compute 3.0"]
+            App[FastAPI + Qwen orchestration]
         end
         RDS[(RDS Postgres + pgvector)]
+        Secrets[Secrets Manager + RAM role]
+        SLS[SLS logs + alerts]
     end
 
     subgraph External["External Services"]
         Qwen[Qwen Cloud API]
     end
 
-    Judge -->|HTTPS| App
-    App -->|internal network| RDS
+    Judge -->|HTTPS| CDN
+    CDN -->|credentialed API calls| Gateway
+    Gateway --> App
+    App -->|private network| RDS
     App -->|API calls| Qwen
+    Secrets -. inject runtime secrets .-> App
+    App --> SLS
 ```
 
 ---
@@ -151,5 +158,5 @@ graph LR
 ## 5. How to Render These
 
 - GitHub renders Mermaid blocks natively in any `.md` file — this document, viewed on GitHub, already displays all three diagrams without additional tooling
-- For the main repository README and the Devpost submission (which may not support live Mermaid rendering), export static PNG/SVG versions using the Mermaid CLI (`mmdc`) or the Mermaid Live Editor, and embed the exported image alongside a link back to this document's live-rendered source
+- The checked-in [architecture SVG](architecture.svg) is the judge-facing static rendering. Keep it synchronized with this source and [ARCHITECTURE.md](../ARCHITECTURE.md).
 - The deployment proof recording (Document 07's compliance checklist) should visually reference the topology diagram (Section 4) when narrating which Alibaba Cloud components are actually running, so a judge can map the live recording directly onto the diagram

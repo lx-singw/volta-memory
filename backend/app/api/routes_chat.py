@@ -4,13 +4,21 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.chat.session import end_session, send_message, start_session
+from app.chat.session import SessionEndingInProgress, SessionExtractionUnavailable, end_session, send_message, start_session
 from app.config import get_settings
 
 router = APIRouter(tags=["chat"])
+
+
+def _reject_legacy_mutation_in_production() -> None:
+    if get_settings().app_env == "production":
+        raise HTTPException(
+            status_code=410,
+            detail="Legacy mutations are disabled in production. Use /v1 routes.",
+        )
 
 
 class StartSessionResponse(BaseModel):
@@ -37,6 +45,8 @@ class EndSessionResponse(BaseModel):
     session_id: str
     ended_at: str
     memories_written: list[dict]
+    memory_changes: list[dict] = Field(default_factory=list)
+    extraction_status: str = "completed"
 
 
 @router.post("/sessions", response_model=StartSessionResponse, status_code=201)
@@ -45,6 +55,11 @@ def create_session(
     entity_id: str | None = Query(default=None),
 ) -> StartSessionResponse:
     settings = get_settings()
+    if settings.app_env == "production":
+        raise HTTPException(
+            status_code=410,
+            detail="Legacy sessions are disabled in production. Use /v1/sessions.",
+        )
     resolved_entity = entity_id or (
         "demo-consumer-2" if persona == "study_coach" else "demo-consumer-1"
     )
@@ -64,6 +79,7 @@ def post_message(
     persona: str = Query(default="volta"),
     stream: bool = Query(default=False)
 ):
+    _reject_legacy_mutation_in_production()
     import json
     from fastapi.responses import StreamingResponse
     from app.chat.session import send_message_stream
@@ -123,9 +139,17 @@ def post_message(
 
 
 @router.post("/sessions/{session_id}/end", response_model=EndSessionResponse)
-def post_end_session(session_id: UUID) -> EndSessionResponse:
+def post_end_session(
+    session_id: UUID,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> EndSessionResponse:
+    _reject_legacy_mutation_in_production()
     try:
-        result = end_session(session_id)
+        result = end_session(session_id, idempotency_key=idempotency_key)
+    except SessionEndingInProgress as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SessionExtractionUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return EndSessionResponse(**result)

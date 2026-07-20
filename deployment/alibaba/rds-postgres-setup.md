@@ -32,7 +32,7 @@ In PostgreSQL 15+, the `public` schema has default write privileges removed. Onl
 Alibaba Cloud RDS disables SSL by default. For secure transport:
 1. Navigate to **Database Connection** in the RDS console.
 2. Under the *Public Connection* section, click **Apply for Public Endpoint**.
-3. Under **Whitelist and SecGroup**, modify the `default` whitelist to `0.0.0.0/0` (or your local IP).
+3. Under **Whitelist and SecGroup**, allow only the Function Compute VPC/security group and a temporary administrator IP for migration work. Never use `0.0.0.0/0` for the public demo.
 4. Navigate to the SSL page and click **Modify SSL** to enable SSL for the public endpoint. Set `DATABASE_SSL_MODE=require` in your environment:
 
 ```properties
@@ -45,15 +45,15 @@ ALIBABA_RDS_INSTANCE_ID=pgm-gs5u65bd5p38lzot
 
 To apply the schema tables, vector structures, and indices securely:
 ```bash
-# Run the migration script at the repository root
+# Run the migration script from an approved administrator environment.
+# The application runtime uses the least-privilege `volta` database account.
 chmod +x migrate.sh
 ./migrate.sh
 ```
 
 ## 5. Verify Deployment
 
-Run the verification script to check that the ECS/FC compute environment successfully connects to the running database instance and registers correctly with the Alibaba Cloud SDK:
+Run the verification script to check that the Function Compute deployment is visible through Alibaba Cloud and that the public API health endpoint responds:
 ```bash
 python3 deployment/proof/deployment_verification.py
 ```
-

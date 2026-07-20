@@ -125,7 +125,7 @@ Explicitly not building for this submission:
 ## 7. Technical Constraints
 
 - All LLM inference calls go through Qwen Cloud — no other model provider in the critical path
-- Backend must run on Alibaba Cloud infrastructure (ECS or Function Compute) — not merely deployed to a generic host
+- Backend runs on Alibaba Cloud Function Compute 3.0 behind API Gateway; the static frontend is served from OSS/CDN, not a generic host
 - Memory store must use a real database (Postgres via Alibaba RDS, or equivalent) — not an in-memory dict that resets on restart, since persistence across sessions is the entire point
 - Token budget enforcement must use actual token counting, not a row-count proxy
 
@@ -165,4 +165,3 @@ Explicitly not building for this submission:
 
 ### 8.9 Hosted live demo remains accessible through judging
 **Acceptance criterion:** Public URL live and rate-limited appropriately, verified accessible at submission time and re-verified in the days immediately before the judging deadline.
-

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import AppHeader from "./components/AppHeader";
 
@@ -12,7 +13,10 @@ export const viewport: Viewport = { themeColor: "#07111F", colorScheme: "dark" }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-ZA">
-      <body><div className="app-shell"><AppHeader /><main>{children}</main></div></body>
+      <body>
+        <Script src="/runtime-config.js" strategy="beforeInteractive" />
+        <div className="app-shell"><AppHeader /><main>{children}</main></div>
+      </body>
     </html>
   );
 }

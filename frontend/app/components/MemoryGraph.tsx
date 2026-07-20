@@ -2,45 +2,99 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clock3, Eye, Focus, Link2, MousePointer2, Quote, ShieldCheck } from "lucide-react";
+import { Check, Clock3, Eye, Focus, Link2, MousePointer2, Quote, ShieldCheck, Undo2 } from "lucide-react";
+import type { MemoryDTO, MemoryRelation } from "../lib/api";
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false, loading: () => <div className="graph-loading"><span className="spinner" /> Preparing memory map…</div> });
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+  ssr: false,
+  loading: () => <div className="graph-loading"><span className="spinner" /> Preparing memory map…</div>,
+});
 
-type Props = { memories: any[] };
-const text = (memory: any) => memory.observation || memory.content || memory.text || "Untitled memory";
-const confidence = (memory: any) => memory.effective_confidence ?? memory.confidence ?? memory.base_confidence ?? 0.5;
-const dateLabel = (value?: string | null) => value ? new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium" }).format(new Date(value)) : "Not recorded";
+type Props = {
+  memories: MemoryDTO[];
+  relationships?: MemoryRelation[];
+  focusMemoryId?: string | null;
+  readOnly?: boolean;
+};
 
-function nodeKind(memory: any) {
-  if (memory.is_superseded) return "superseded";
-  if (memory.memory_type === "preference") return "preference";
-  if (memory.memory_type === "correction" || memory.memory_type === "fact") return "fact";
+type GraphNode = { id: string; name: string; val: number; color: string; confidence: number; memory: MemoryDTO; x?: number; y?: number };
+type GraphLink = { source: string; target: string; relationType: MemoryRelation["relationType"]; color: string };
+
+const colors: Record<string, string> = {
+  fact: "#F6B93B",
+  preference: "#9B8AFB",
+  evidence: "#42D3E8",
+  retained: "#667B92",
+  excluded: "#F59E6B",
+  reconfirmation: "#F6B93B",
+};
+
+function dateLabel(value?: string | null) {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "Not recorded" : new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium" }).format(date);
+}
+
+function nodeKind(memory: MemoryDTO) {
+  if (memory.status === "retained") return "retained";
+  if (memory.status === "excluded") return "excluded";
+  if (memory.status === "needs_reconfirmation") return "reconfirmation";
+  if (memory.memoryType === "preference") return "preference";
+  if (memory.memoryType === "fact" || memory.memoryType === "correction") return "fact";
   return "evidence";
 }
 
-const colors: Record<string, string> = { fact: "#F6B93B", preference: "#9B8AFB", evidence: "#42D3E8", superseded: "#667B92" };
-
-function wrapText(text: string, maxCharsPerLine: number = 20): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let currentLine = "";
-
-  words.forEach((word) => {
-    if ((currentLine + " " + word).trim().length <= maxCharsPerLine) {
-      currentLine = (currentLine + " " + word).trim();
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  });
-  if (currentLine) lines.push(currentLine);
-  return lines;
+function statusLabel(memory: MemoryDTO) {
+  if (memory.status === "eligible") return "Current";
+  if (memory.status === "needs_reconfirmation") return "Needs reconfirmation";
+  if (memory.status === "retained") return "Retained for audit";
+  return "Excluded from advice";
 }
 
-export default function MemoryGraph({ memories }: Props) {
+function statusClass(memory: MemoryDTO) {
+  return memory.status === "eligible" ? "active" : memory.status === "needs_reconfirmation" ? "warning" : "inactive";
+}
+
+function persistedRelationships(memories: MemoryDTO[], supplied: MemoryRelation[]) {
+  const byId = new Map(memories.map((memory) => [memory.id, memory]));
+  const all = [...supplied, ...memories.flatMap((memory) => memory.relationships || [])];
+  const hasPersistedPair = (sourceMemoryId: string, targetMemoryId: string) => all.some((relation) => (
+    (relation.sourceMemoryId === sourceMemoryId && relation.targetMemoryId === targetMemoryId) ||
+    (relation.sourceMemoryId === targetMemoryId && relation.targetMemoryId === sourceMemoryId)
+  ));
+  // A correction chain stored on the memory record/provenance is a persisted
+  // relationship too.  Never connect active memories merely for visual effect.
+  // Versioned reinforcements intentionally retain the prior record but store an
+  // `reinforces` link; do not invent a second, misleading supersedes link.
+  for (const memory of memories) {
+    if (memory.provenance.prior?.id && byId.has(memory.provenance.prior.id) && !hasPersistedPair(memory.provenance.prior.id, memory.id)) {
+      all.push({ sourceMemoryId: memory.provenance.prior.id, targetMemoryId: memory.id, relationType: "supersedes" });
+    } else if (memory.supersededById && byId.has(memory.supersededById) && !hasPersistedPair(memory.id, memory.supersededById)) {
+      all.push({ sourceMemoryId: memory.id, targetMemoryId: memory.supersededById, relationType: "supersedes" });
+    }
+  }
+  const seen = new Set<string>();
+  return all.filter((relation) => {
+    const key = `${relation.sourceMemoryId}:${relation.targetMemoryId}:${relation.relationType}`;
+    if (seen.has(key) || !byId.has(relation.sourceMemoryId) || !byId.has(relation.targetMemoryId)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export default function MemoryGraph({ memories, relationships = [], focusMemoryId, readOnly = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 640, height: 520 });
-  const [selected, setSelected] = useState<any | null>(memories.find((memory) => memory.memory_type === "correction") || memories.find((memory) => !memory.is_superseded) || null);
+  const [selectedId, setSelectedId] = useState<string | null>(focusMemoryId || memories.find((memory) => memory.memoryType === "correction" && memory.status === "eligible")?.id || memories.find((memory) => memory.status === "eligible")?.id || memories[0]?.id || null);
+  const selected = memories.find((memory) => memory.id === selectedId) || null;
+
+  useEffect(() => {
+    if (focusMemoryId && memories.some((memory) => memory.id === focusMemoryId)) setSelectedId(focusMemoryId);
+  }, [focusMemoryId, memories]);
+
+  useEffect(() => {
+    if (!selectedId || !memories.some((memory) => memory.id === selectedId)) setSelectedId(memories[0]?.id || null);
+  }, [memories, selectedId]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -54,71 +108,113 @@ export default function MemoryGraph({ memories }: Props) {
     return () => observer.disconnect();
   }, []);
 
+  const relations = useMemo(() => persistedRelationships(memories, relationships), [memories, relationships]);
   const graph = useMemo(() => {
-    const nodes = memories.map((memory) => ({ id: memory.id || memory.memory_id, name: text(memory), val: Math.max(12, (memory.importance_score ?? confidence(memory)) * 30), color: colors[nodeKind(memory)], confidence: confidence(memory), memory }));
-    const links: any[] = [];
-    memories.forEach((memory) => {
-      const id = memory.id || memory.memory_id;
-      if (memory.superseded_by_id) links.push({ source: id, target: memory.superseded_by_id, kind: "correction", color: "rgba(246,185,59,.5)" });
-      const supersedes = memory.evidence?.supersedes?.memory_id;
-      if (supersedes && !links.some((link) => link.source === supersedes && link.target === id)) links.push({ source: supersedes, target: id, kind: "correction", color: "rgba(246,185,59,.5)" });
-    });
-    const active = nodes.filter((node) => !node.memory.is_superseded);
-    active.slice(1).forEach((node, index) => links.push({ source: active[index].id, target: node.id, kind: "reinforcement", color: "rgba(66,211,232,.16)" }));
+    const nodes: GraphNode[] = memories.map((memory) => ({
+      id: memory.id,
+      name: memory.observation,
+      val: Math.max(12, (memory.importance ?? memory.confidence) * 30),
+      color: colors[nodeKind(memory)],
+      confidence: memory.confidence,
+      memory,
+    }));
+    const links: GraphLink[] = relations.map((relation) => ({
+      source: relation.sourceMemoryId,
+      target: relation.targetMemoryId,
+      relationType: relation.relationType,
+      color: relation.relationType === "supersedes" ? "rgba(246,185,59,.68)" : relation.relationType === "reinforces" ? "rgba(66,211,232,.5)" : "rgba(155,138,251,.5)",
+    }));
     return { nodes, links };
-  }, [memories]);
+  }, [memories, relations]);
 
-  const supersededBy = selected?.superseded_by_id ? memories.find((memory) => (memory.id || memory.memory_id) === selected.superseded_by_id) : null;
-  const sourceQuote = selected?.evidence?.source_quote || selected?.source_quote;
+  const select = (memory: MemoryDTO) => {
+    setSelectedId(memory.id);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("focus", memory.id);
+      window.history.replaceState({}, "", url);
+    }
+  };
+
+  const selectedRelations = selected ? relations.filter((relation) => relation.sourceMemoryId === selected.id || relation.targetMemoryId === selected.id) : [];
+  const relationDescription = (relation: MemoryRelation) => {
+    const counterpartId = relation.sourceMemoryId === selected?.id ? relation.targetMemoryId : relation.sourceMemoryId;
+    const counterpart = memories.find((memory) => memory.id === counterpartId);
+    const label = relation.relationType === "supersedes"
+      ? relation.sourceMemoryId === selected?.id ? "Replaced by" : "Replaces"
+      : relation.relationType === "reinforces"
+        ? relation.sourceMemoryId === selected?.id ? "Reconfirmed by" : "Reconfirmed from"
+        : "Consolidated with";
+    return { counterpart, label };
+  };
+
+  const sourceQuote = selected?.provenance.sourceVerified ? selected.provenance.sourceQuote : null;
+  // The accessible audit trail reads as a lineage: original evidence first,
+  // then its correction/reconfirmation, rather than a reverse activity feed.
+  const timeline = [...memories].sort((a, b) => new Date(a.createdAt || a.lastConfirmedAt || 0).valueOf() - new Date(b.createdAt || b.lastConfirmedAt || 0).valueOf());
 
   return <div className="memory-rich-state">
     <div className="graph-layout">
-      <section className="panel graph-panel" aria-label="Interactive Volta memory map">
-        <header><div><p className="eyebrow">Relationship map</p><h2>Homeowner evidence</h2></div><span className="pill"><MousePointer2 size={13} /> Select a memory</span></header>
-        <div ref={ref} className="graph-canvas"><ForceGraph2D width={dimensions.width} height={dimensions.height} graphData={graph} backgroundColor="#0A1728" nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence`} nodeColor={(node: any) => node.color} nodeRelSize={6} linkColor={(link: any) => link.color} linkWidth={(link: any) => link.kind === "correction" ? 2.5 : 1} linkDirectionalArrowLength={(link: any) => link.kind === "correction" ? 5 : 0} onNodeClick={(node: any) => setSelected(node.memory)} nodeCanvasObjectMode={() => "replace"}         nodeCanvasObject={(node: any, context, scale) => {
-          const isSelected = selected && (selected.id || selected.memory_id) === (node.memory.id || node.memory.memory_id);
-          const radius = Math.max(12, Math.sqrt(node.val || 12) * 2.2);
-          
-          // Selection glow ring
-          if (isSelected) {
-            context.beginPath();
-            context.arc(node.x, node.y, radius + 5, 0, 2 * Math.PI);
-            context.fillStyle = "rgba(66, 211, 232, 0.25)";
-            context.fill();
-            
-            context.beginPath();
-            context.arc(node.x, node.y, radius + 2, 0, 2 * Math.PI);
-            context.strokeStyle = "#42D3E8";
-            context.lineWidth = 1.5;
-            context.stroke();
-          }
-          
-          // Main circle
-          context.beginPath();
-          context.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-          context.fillStyle = node.color;
-          context.fill();
-          
-          // Border
-          context.beginPath();
-          context.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-          context.strokeStyle = "#0A1728";
-          context.lineWidth = 1.5;
-          context.stroke();
-        }} /> </div>
-        <footer aria-label="Memory map legend"><span><i className="legend-dot gold" /> Active facts</span><span><i className="legend-dot violet" /> Preferences</span><span><i className="legend-dot cyan" /> Evidence</span><span><i className="legend-dot muted-dot" /> Superseded</span><span><Link2 size={12} /> Links show reinforcement or correction</span></footer>
+      <section className="panel graph-panel" aria-label={readOnly ? "Read-only Volta showcase memory map" : "Interactive Volta memory map"}>
+        <header><div><p className="eyebrow">Relationship map</p><h2>{readOnly ? "Showcase evidence" : "Homeowner evidence"}</h2></div><span className="pill"><MousePointer2 size={13} /> Select a memory</span></header>
+        <div ref={ref} className="graph-canvas" aria-hidden="true">
+          <ForceGraph2D
+            width={dimensions.width}
+            height={dimensions.height}
+            graphData={graph}
+            backgroundColor="#0A1728"
+            nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence · ${statusLabel(node.memory)}`}
+            nodeColor={(node: any) => node.color}
+            nodeRelSize={6}
+            linkColor={(link: any) => link.color}
+            linkWidth={(link: any) => link.relationType === "supersedes" ? 2.5 : 1.4}
+            linkDirectionalArrowLength={(link: any) => link.relationType === "supersedes" ? 5 : 0}
+            onNodeClick={(node: any) => select(node.memory)}
+            nodeCanvasObjectMode={() => "replace"}
+            nodeCanvasObject={(node: any, context: CanvasRenderingContext2D) => {
+              const isSelected = selectedId === node.memory.id;
+              const radius = Math.max(12, Math.sqrt(node.val || 12) * 2.2);
+              if (isSelected) {
+                context.beginPath();
+                context.arc(node.x || 0, node.y || 0, radius + 5, 0, 2 * Math.PI);
+                context.fillStyle = "rgba(66, 211, 232, 0.25)";
+                context.fill();
+                context.beginPath();
+                context.arc(node.x || 0, node.y || 0, radius + 2, 0, 2 * Math.PI);
+                context.strokeStyle = "#42D3E8";
+                context.lineWidth = 1.5;
+                context.stroke();
+              }
+              context.beginPath();
+              context.arc(node.x || 0, node.y || 0, radius, 0, 2 * Math.PI);
+              context.fillStyle = node.color;
+              context.fill();
+              context.beginPath();
+              context.arc(node.x || 0, node.y || 0, radius, 0, 2 * Math.PI);
+              context.strokeStyle = "#0A1728";
+              context.lineWidth = 1.5;
+              context.stroke();
+            }}
+          />
+        </div>
+        <footer aria-label="Memory map legend"><span><i className="legend-dot gold" /> Current facts</span><span><i className="legend-dot violet" /> Preferences</span><span><i className="legend-dot cyan" /> Evidence</span><span><i className="legend-dot muted-dot" /> Retained for audit</span><span><Link2 size={12} /> Persisted links show corrections or reinforcements</span></footer>
       </section>
 
       <aside className="panel evidence-panel" aria-live="polite">
-        {selected ? <><div className="evidence-title"><div><p className="eyebrow">Selected memory</p><h2>{nodeKind(selected) === "superseded" ? "No longer used" : "Current evidence"}</h2></div><span className={`status-badge ${selected.is_superseded ? "inactive" : "active"}`}>{selected.is_superseded ? "Superseded" : "Current"}</span></div>
-          <blockquote><Quote size={15} /> {sourceQuote || text(selected)}</blockquote>
-          {!sourceQuote && <p className="source-note">The stored observation is shown because a verbatim source quote is not available in this response.</p>}
-          <dl><div><dt>Confidence</dt><dd>{Math.round(confidence(selected) * 100)}%</dd></div><div><dt>Last confirmed</dt><dd>{dateLabel(selected.last_reinforced_at)}</dd></div><div><dt>Type</dt><dd>{selected.memory_type || "Evidence"}</dd></div><div><dt>Importance</dt><dd>{selected.importance_score == null ? "Not scored" : `${Math.round(selected.importance_score * 100)}%`}</dd></div>{supersededBy && <div><dt>Superseded by</dt><dd>{text(supersededBy)}</dd></div>}</dl>
-          <p className="privacy-note"><ShieldCheck size={14} /> Memory is on. Current facts may guide advice; superseded facts remain only for accountability.</p>
-        </> : <div className="evidence-empty"><span className="icon-box"><Focus size={18} /></span><h2>Select a memory</h2><p>Inspect its status, confidence, and correction relationship.</p></div>}
+        {selected ? <>
+          <div className="evidence-title"><div><p className="eyebrow">Selected memory</p><h2>{statusLabel(selected)}</h2></div><span className={`status-badge ${statusClass(selected)}`}>{selected.status === "eligible" ? <Check size={12} /> : <Eye size={12} />}{statusLabel(selected)}</span></div>
+          <p className="selected-observation">{selected.observation}</p>
+          {sourceQuote ? <blockquote><Quote size={15} /> “{sourceQuote}”{selected.provenance.sourceTurnIndex !== null && selected.provenance.sourceTurnIndex !== undefined ? <small> · Your turn {selected.provenance.sourceTurnIndex}</small> : null}</blockquote> : <p className="source-note">No verified verbatim source was persisted for this legacy memory. Volta will not present the stored observation as a direct quote.</p>}
+          <dl><div><dt>Confidence</dt><dd>{Math.round(selected.confidence * 100)}%</dd></div><div><dt>Last confirmed</dt><dd>{dateLabel(selected.lastConfirmedAt)}</dd></div><div><dt>Type</dt><dd>{selected.memoryType}</dd></div><div><dt>Importance</dt><dd>{selected.importance === null ? "Not scored" : `${Math.round(selected.importance * 100)}%`}</dd></div></dl>
+          {selectedRelations.length ? <div className="relation-list">{selectedRelations.map((relation) => {
+            const description = relationDescription(relation);
+            return description.counterpart ? <button type="button" key={`${relation.sourceMemoryId}-${relation.targetMemoryId}-${relation.relationType}`} className="relation-item" onClick={() => select(description.counterpart!)}><Undo2 size={14} /><span><small>{description.label}</small>{description.counterpart.observation}</span></button> : null;
+          })}</div> : null}
+          <p className="privacy-note"><ShieldCheck size={14} /> {selected.status === "eligible" ? "This current fact may guide advice." : "This record remains visible for accountability, not advice."}</p>
+        </> : <div className="evidence-empty"><span className="icon-box"><Focus size={18} /></span><h2>Select a memory</h2><p>Inspect its status, source evidence, and correction relationship.</p></div>}
       </aside>
     </div>
 
-    <section className="panel memory-list-panel"><header><div><p className="eyebrow">Accessible view</p><h2>Memory timeline</h2></div><span className="muted">Select any row to inspect it</span></header><div className="memory-list">{[...memories].sort((a, b) => Number(Boolean(a.is_superseded)) - Number(Boolean(b.is_superseded))).map((memory) => <button key={memory.id || memory.memory_id} className={`memory-list-item ${selected === memory ? "selected" : ""}`} onClick={() => setSelected(memory)}><span className={`memory-type-dot ${nodeKind(memory)}`} /><span className="memory-list-copy"><strong>{text(memory)}</strong><small><Clock3 size={12} /> {dateLabel(memory.last_reinforced_at)} · {Math.round(confidence(memory) * 100)}% confidence</small></span><span className={`status-badge ${memory.is_superseded ? "inactive" : "active"}`}>{memory.is_superseded ? <Eye size={12} /> : <Check size={12} />}{memory.is_superseded ? "Retained" : "Used"}</span></button>)}</div></section>
+    <section className="panel memory-list-panel"><header><div><p className="eyebrow">Accessible view</p><h2>Memory timeline</h2></div><span className="muted">Select any row to inspect it</span></header><div className="memory-list">{timeline.map((memory) => <button type="button" key={memory.id} className={`memory-list-item ${selectedId === memory.id ? "selected" : ""}`} onClick={() => select(memory)} aria-pressed={selectedId === memory.id}><span className={`memory-type-dot ${nodeKind(memory)}`} /><span className="memory-list-copy"><strong>{memory.observation}</strong><small><Clock3 size={12} /> {dateLabel(memory.lastConfirmedAt || memory.createdAt)} · {Math.round(memory.confidence * 100)}% confidence</small></span><span className={`status-badge ${statusClass(memory)}`}>{memory.status === "eligible" ? <Check size={12} /> : <Eye size={12} />}{statusLabel(memory)}</span></button>)}</div></section>
   </div>;
 }

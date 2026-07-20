@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 from app.chat.qwen_client import get_qwen_client
 from app.memory.models import MemoryDraft, MemoryType
+from app.memory.provenance import sanitize_provenance
 
 logger = logging.getLogger(__name__)
+
+
+class ExtractionFailure(RuntimeError):
+    """Raised to callers that need to distinguish an outage from no new memory."""
 
 
 def format_transcript_with_turns(raw_transcript: str) -> str:
@@ -24,7 +30,12 @@ def format_transcript_with_turns(raw_transcript: str) -> str:
     return "\n".join(lines)
 
 
-def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
+def extract_observations(
+    conversation_transcript: str,
+    *,
+    user_turns: list[dict[str, Any]] | None = None,
+    raise_on_failure: bool = False,
+) -> list[MemoryDraft]:
     """Call Qwen Cloud to extract memory drafts from the session transcript."""
     if not conversation_transcript.strip():
         return []
@@ -45,7 +56,8 @@ def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
         "  \"importance_reasoning\": \"One sentence explanation of the importance score\",\n"
         "  \"source_quote\": \"The exact verbatim quote from the user's message that supports this observation (must be a literal substring of the transcript)\",\n"
         "  \"source_turn_index\": 1-based integer index of the Turn in the transcript containing this observation,\n"
-        "  \"is_constraint\": true | false (true if this observation represents a constraint on the solution space, e.g. roof size, budget, location constraints)\n"
+        "  \"is_constraint\": true | false (true if this observation represents a constraint on the solution space, e.g. roof size, budget, location constraints),\n"
+        "  \"profile_slot\": \"monthly_bill\" | \"backup_priority\" | \"roof_home\" | \"budget\" | \"tariff\" | \"none\"\n"
         "}\n\n"
         "Guidelines:\n"
         "- Do not extract temporary greetings or transient chat states.\n"
@@ -59,6 +71,8 @@ def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
         result = client.complete_json(system_prompt, formatted_transcript)
         if not isinstance(result, list):
             logger.error(f"Extraction result was not a list: {result}")
+            if raise_on_failure:
+                raise ExtractionFailure("Memory extraction returned an invalid response.")
             return []
 
         drafts: list[MemoryDraft] = []
@@ -68,11 +82,12 @@ def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
                 if mtype_str not in [e.value for e in MemoryType]:
                     mtype_str = "fact"
 
-                evidence = {
+                evidence, profile_slot = sanitize_provenance({
                     "source_quote": item.get("source_quote"),
                     "source_turn_index": item.get("source_turn_index"),
-                    "is_constraint": bool(item.get("is_constraint", False))
-                }
+                    "is_constraint": bool(item.get("is_constraint", False)),
+                    "profile_slot": item.get("profile_slot"),
+                }, user_turns, item.get("observation", ""))
 
                 drafts.append(
                     MemoryDraft(
@@ -82,6 +97,7 @@ def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
                         importance_score=float(item.get("importance_score", 0.5)),
                         importance_reasoning=item.get("importance_reasoning", ""),
                         evidence=evidence,
+                        profile_slot=profile_slot,
                     )
                 )
             except Exception as e:
@@ -89,11 +105,6 @@ def extract_observations(conversation_transcript: str) -> list[MemoryDraft]:
         return drafts
     except Exception as e:
         logger.error(f"Error executing Qwen extraction: {e}")
-        return [
-            MemoryDraft(
-                memory_type=MemoryType.OUTCOME,
-                observation="Failed Qwen memory extraction, session ended.",
-                base_confidence=0.5,
-            )
-        ]
-
+        if raise_on_failure:
+            raise ExtractionFailure("Memory extraction is temporarily unavailable.") from e
+        return []

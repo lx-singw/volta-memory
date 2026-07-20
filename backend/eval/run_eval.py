@@ -27,6 +27,11 @@ from eval.baselines import system_b_full_context as system_b
 from eval.baselines import system_c_naive_rag as system_c
 from eval.ground_truth import load_persona_expectations
 from eval.metrics import evaluate_assertions, summarize_metrics
+from eval.artifacts import (
+    build_evaluation_artifact,
+    render_benchmarks_markdown,
+    write_evaluation_artifacts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +45,7 @@ SYSTEMS = {
 
 def get_git_commit() -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").strip()[:8]
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").strip()
     except Exception:
         return "unknown"
 
@@ -428,8 +433,7 @@ def main() -> dict:
         "",
         f"**Date:** {date_str}  ",
         f"**Model ID:** `{model_name}`  ",
-        f"**Evaluator Code Commit:** `cf845c7e`  ",
-        f"**Report Reference Commit:** `{git_commit}`  ",
+        f"**Evaluator Code Commit:** `{git_commit}`  ",
         "",
         "## Comparative Systems Summary",
         "",
@@ -461,8 +465,46 @@ def main() -> dict:
         
     with open(benchmarks_path, "w", encoding="utf-8") as f:
         f.write("\n".join(markdown_lines) + "\n")
-        
-    print(f"\n✓ Completed benchmark run successfully. Summary report written to {benchmarks_path}.")
+
+    # Publish a JSON artifact and render the committed Markdown from that same
+    # source. The final BENCHMARKS.md is always the artifact-derived version.
+    configuration = {
+        "systems": variants,
+        "personas": [persona["id"] for persona in personas],
+        "replicates": replicates_count,
+        "expectedRuns": len(variants) * len(personas) * replicates_count,
+        "timeline": "chronological session execution",
+        "baselineIsolation": "verified before the sweep",
+    }
+    artifact_systems = {}
+    for variant in variants:
+        info = summary[variant]
+        artifact_systems[variant] = {
+            "label": info["label"],
+            "metrics": info["metrics"],
+            "online": {
+                "latencyP50Ms": info["answer_latency_p50"],
+                "tokensP50": info["answer_tokens_p50"],
+                "costAvgUsd": info["answer_cost_avg"],
+            },
+            "offline": {
+                "latencyP50Ms": info["write_latency_p50"],
+                "costAvgUsd": info["write_cost_avg"],
+            },
+            "sampleRuns": info["sample_size"],
+        }
+    artifact, cases = build_evaluation_artifact(
+        run_id=run_id,
+        runs=run_results,
+        systems=artifact_systems,
+        model=model_name,
+        evaluator_code_commit=git_commit,
+        configuration=configuration,
+    )
+    summary_path, _ = write_evaluation_artifacts(benchmarks_path.parent, artifact, cases)
+    benchmarks_path.write_text(render_benchmarks_markdown(artifact), encoding="utf-8")
+
+    print(f"\nCompleted benchmark run successfully. Artifacts written to {summary_path} and {benchmarks_path}.")
     return summary
 
 

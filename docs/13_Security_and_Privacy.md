@@ -28,7 +28,7 @@ Security-relevant decisions are already made throughout Documents 03 and 09 — 
 | Actor | Motivation | Relevant surface |
 |-------|-----------|------------------|
 | Adversarial demo user | Inject false memory to manipulate future responses | Memory extraction pipeline (Design Doc §7, §15) |
-| Public live-demo visitor | Exhaust shared Qwen API credit / cost abuse | Live demo endpoint (Document 09 §13) |
+| Public live-demo visitor | Exhaust the function-held Qwen budget / cost abuse | API Gateway and Function Compute edge |
 | Curious contributor with DB access | Attempt to re-identify an individual from population priors | `population_patterns` table (Design Doc §18) |
 | Careless maintainer | Accidentally commit or log a real API key during repeated demo recording | Any file, any log line |
 | MCP client (malicious or buggy) | Call memory-write tools with malformed or excessive data | `mcp/volta_memory_server.py` (Design Doc §22) |
@@ -59,7 +59,7 @@ Fully specified in Document 09 §18 — restated here: `.env` is git-ignored, `.
 
 ## 6. Public Live Demo Exposure
 
-Fully specified in Document 09 §13 — restated here: the hosted demo shares one `QWEN_API_KEY` across all public visitors, rate-limited per IP (`LIVE_DEMO_RATE_LIMIT_PER_IP`, default 20/hour) specifically to bound cost exposure, with anonymous visitor memory reset on a rolling basis (`LIVE_DEMO_DEMO_ENTITY_RESET_HOURS`) so one visitor's test data doesn't permanently pollute the shared instance. The key must be rotated immediately after the judging window closes, regardless of whether the rate limit appeared to hold — stated as a required action in Document 09, repeated here as a security posture item, not just an operational note.
+The public product runs behind API Gateway, which applies route-level throttling and concurrency limits before Function Compute can invoke Qwen. Qwen credentials remain in the Function Compute secret boundary; the browser receives only a public API origin. A first visit receives an isolated anonymous workspace, `/try` creates a separate sandbox, and `/showcase` is read-only. There is no shared mutable demo account, public reset route, or browser-facing reseed/evaluation action.
 
 ---
 
@@ -67,7 +67,7 @@ Fully specified in Document 09 §13 — restated here: the hosted demo shares on
 
 Not previously specified elsewhere — a genuine gap this document closes. For the hackathon demo scope:
 
-- Anonymous public demo visitor data (Section 6) is reset on the rolling schedule above — no long-term retention commitment is made or implied to public demo users
+- Anonymous visitor workspaces are isolated by an opaque HttpOnly session cookie. A visitor can upgrade with passwordless email, export their workspace, or permanently delete it through the tenant-scoped API. Showcase data is immutable and excluded from deletion.
 - The named human evaluation study participants (Document 08 §9) — their raw conversation data and ratings should be deletable on request, and the study protocol (referenced in Document 02's `docs/human-eval-study/` addition) should state this explicitly to participants at recruitment, not as an afterthought
 - The public benchmark dataset (Document 08 §10) is synthetic — no real user data, so standard dataset-retention concerns do not apply, which is itself a reason the synthetic-persona approach was the right choice for a public release rather than anonymized real conversation logs
 

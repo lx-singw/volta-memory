@@ -11,7 +11,7 @@ import logging
 from app.db import get_connection
 
 logger = logging.getLogger(__name__)
-from app.memory.models import Memory, MemoryContext, MemoryDraft, MemoryType
+from app.memory.models import Memory, MemoryContext, MemoryDraft, MemoryType, ProfileSlot
 from app.memory.retrieval import build_memory_context
 
 
@@ -36,10 +36,15 @@ def _row_to_memory(row: dict[str, Any]) -> Memory:
         plausibility_flag=row.get("plausibility_flag") or "plausible",
         consolidation_source_ids=row.get("consolidation_source_ids"),
         source=row.get("source") or "individual",
+        profile_slot=ProfileSlot(row.get("profile_slot") or "none"),
     )
 
 
-def list_memories(entity_id: str, include_superseded: bool = True) -> list[Memory]:
+def list_memories(
+    entity_id: str,
+    include_superseded: bool = True,
+    conn: Any | None = None,
+) -> list[Memory]:
     query = """
         SELECT * FROM memories
         WHERE entity_id = %s
@@ -49,7 +54,10 @@ def list_memories(entity_id: str, include_superseded: bool = True) -> list[Memor
         query += " AND NOT is_superseded"
     query += " ORDER BY last_reinforced_at DESC NULLS LAST"
 
-    with get_connection() as conn:
+    if conn is None:
+        with get_connection() as connection:
+            rows = connection.execute(query, params).fetchall()
+    else:
         rows = conn.execute(query, params).fetchall()
     return [_row_to_memory(dict(row)) for row in rows]
 
@@ -74,27 +82,33 @@ def write_memory(
     importance_reasoning: str | None = None,
     plausibility_flag: str = "plausible",
     source: str = "individual",
+    profile_slot: ProfileSlot | str = ProfileSlot.NONE,
     timestamp: datetime | None = None,
+    conn: Any | None = None,
 ) -> Memory:
     memory_id = uuid4()
     from app.utils.clock import get_now
     now = timestamp or get_now()
 
-    with get_connection() as conn:
-        row = conn.execute(
+    profile_slot_value = (
+        profile_slot.value if isinstance(profile_slot, ProfileSlot) else str(profile_slot or "none")
+    )
+
+    def _insert(connection: Any):
+        return connection.execute(
             """
             INSERT INTO memories (
                 id, entity_id, memory_type, observation, evidence,
                 base_confidence, reinforcement_count, cross_session_reinforcement_count,
                 first_observed_at, last_reinforced_at,
                 source_session_id, importance_score, importance_reasoning,
-                plausibility_flag, source, created_at
+                plausibility_flag, source, profile_slot, created_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
                 %s, 1, 1,
                 %s, %s,
                 %s, %s, %s,
-                %s, %s, %s
+                %s, %s, %s, %s
             )
             RETURNING *
             """,
@@ -112,9 +126,16 @@ def write_memory(
                 importance_reasoning,
                 plausibility_flag,
                 source,
+                profile_slot_value,
                 now,
             ),
         ).fetchone()
+
+    if conn is None:
+        with get_connection() as connection:
+            row = _insert(connection)
+    else:
+        row = _insert(conn)
 
     return _row_to_memory(dict(row))
 
@@ -124,6 +145,7 @@ def write_from_draft(
     draft: MemoryDraft,
     source_session_id: UUID | None = None,
     timestamp: datetime | None = None,
+    conn: Any | None = None,
 ) -> Memory:
     return write_memory(
         entity_id=entity_id,
@@ -135,7 +157,9 @@ def write_from_draft(
         importance_score=draft.importance_score,
         importance_reasoning=draft.importance_reasoning,
         source=draft.source,
+        profile_slot=draft.profile_slot,
         timestamp=timestamp,
+        conn=conn,
     )
 
 
@@ -145,9 +169,10 @@ def update_memory_reinforcement(
     cross_session_count: int,
     base_confidence: float,
     last_reinforced_at: datetime,
+    conn: Any | None = None,
 ) -> None:
-    with get_connection() as conn:
-        conn.execute(
+    def _update(connection: Any) -> None:
+        connection.execute(
             """
             UPDATE memories
             SET reinforcement_count = %s,
@@ -165,10 +190,16 @@ def update_memory_reinforcement(
             ),
         )
 
+    if conn is None:
+        with get_connection() as connection:
+            _update(connection)
+    else:
+        _update(conn)
 
-def supersede(old_memory_id: UUID, new_memory: Memory) -> None:
-    with get_connection() as conn:
-        conn.execute(
+
+def supersede(old_memory_id: UUID, new_memory: Memory, conn: Any | None = None) -> None:
+    def _supersede(connection: Any) -> None:
+        connection.execute(
             """
             UPDATE memories
             SET is_superseded = true, superseded_by_id = %s
@@ -176,3 +207,9 @@ def supersede(old_memory_id: UUID, new_memory: Memory) -> None:
             """,
             (new_memory.id, old_memory_id),
         )
+
+    if conn is None:
+        with get_connection() as connection:
+            _supersede(connection)
+    else:
+        _supersede(conn)

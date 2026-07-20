@@ -62,7 +62,12 @@ def get_connection() -> Generator[Connection, None, None]:
             
     try:
         yield conn
-    finally:
+    except BaseException as exc:
+        # Forward exception details to psycopg's connection context manager so
+        # it rolls back instead of committing a partially completed transaction.
+        ctx.__exit__(type(exc), exc, exc.__traceback__)
+        raise
+    else:
         ctx.__exit__(None, None, None)
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from app.chat.qwen_client import get_qwen_client
@@ -117,7 +118,13 @@ def _looks_like_bill_correction(new_text: str, old_text: str) -> bool:
     return new_text != old_text
 
 
-def resolve(old_memory: Memory, new_draft: MemoryDraft | str, entity_id: str, session_id: UUID | None) -> tuple[Memory, Memory]:
+def resolve(
+    old_memory: Memory,
+    new_draft: MemoryDraft | str,
+    entity_id: str,
+    session_id: UUID | None,
+    conn: Any | None = None,
+) -> tuple[Memory, Memory]:
     from app.memory.importance import score_importance
     
     if isinstance(new_draft, str):
@@ -143,7 +150,6 @@ def resolve(old_memory: Memory, new_draft: MemoryDraft | str, entity_id: str, se
     }
     draft.evidence = evidence
 
-    new_memory = write_from_draft(entity_id, draft, source_session_id=session_id)
-    supersede(old_memory.id, new_memory)
+    new_memory = write_from_draft(entity_id, draft, source_session_id=session_id, conn=conn)
+    supersede(old_memory.id, new_memory, conn=conn)
     return old_memory, new_memory
-

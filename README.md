@@ -1,79 +1,86 @@
-# Volta Memory Engine 🧠⚡
+# Volta Memory
 
-<div align="center">
-  <h3><strong>Qwen Cloud Global AI Hackathon | Track 1: MemoryAgent</strong></h3>
-  <p>A serverless, persistent memory engine that gives AI companions compounding, long-term context.</p>
-</div>
+**A Qwen-powered MemoryAgent for home-energy decisions that can show what it knows, what changed, and why its advice is still current.**
 
----
+Volta does not treat a conversation transcript as memory. It stores typed, source-linked observations; detects corrections; preserves superseded facts for accountability; applies selective forgetting; and exposes the evidence used in each recommendation.
 
-## 🌟 The "Wow" Factor: Premium Solar Concierge
-Volta Memory isn't just a backend API—it's a fully realized product. To demonstrate the power of our memory engine, we built a **Premium Solar Concierge**.
+## Live proof
 
-* **Live Force-Graph Memory:** Navigate to the `/memory` route to see the AI's brain in real-time. Memories are rendered as glowing, physics-based nodes. Watch as high-confidence memories burn bright, while outdated or contradicted facts physically shrink and decay over time.
-* **Push-to-Talk Voice Interface:** A zero-latency, highly polished voice interface allows you to speak naturally with Volta, while it reads back responses using premium browser-native TTS.
-* **Compounding Intelligence:** Talk to Volta across multiple sessions. Without being reminded, it will recall your roof size, budget constraints, and energy goals from days prior.
+- Current Function Compute deployment: [app](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run) | [memory view](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory) | [health](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health)
+- Judge showcase: `/showcase` is the immutable correction story.
+- Private trial: `/try` creates an isolated workspace rather than changing the showcase.
 
-## 🌐 Deployed Live Demos
+The production cutover target is **OSS/CDN -> API Gateway -> Function Compute 3.0 -> RDS PostgreSQL + pgvector**. The current FC URL above remains a verification endpoint until the CDN and gateway domains in `VOLTA_PUBLIC_APP_ORIGIN` and `VOLTA_PUBLIC_API_BASE_URL` are configured.
 
-* **Live Concierge Web App:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run)
-* **Live Physics Force-Graph Memory View:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/memory)
-* **Live Backend API Health:** [https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health](https://volta-m-backend-mlutvrvuqy.ap-southeast-1.fcapp.run/health)
+## Why this is a MemoryAgent
 
-## 🏗️ The "How": Engineering & Architecture
-Volta is built entirely on a cutting-edge, serverless, cloud-native stack designed for infinite scale and zero idle costs.
+1. **Persistent memory:** information survives session boundaries in PostgreSQL.
+2. **Corrections with accountability:** R3,200 can become R3,800 without deleting the original evidence.
+3. **Selective forgetting:** decayed or irrelevant memories remain auditable but are excluded from advice.
+4. **Limited-context recall:** retrieval ranks current, high-value facts into a fixed token budget.
+5. **Explainability:** the answer can show what was used, what was considered, and what was deliberately not used.
 
-* **Compute:** Alibaba Cloud Function Compute 3.0 (FC3.0) running a FastAPI backend.
-* **Database:** Alibaba ApsaraDB RDS Serverless (PostgreSQL) leveraging `pgvector` for semantic similarity search.
-* **Intelligence:** Qwen LLMs integrated via Alibaba DashScope.
-* **Frontend:** Next.js 14 Static Export hosted on Alibaba Cloud OSS.
-* **Standards:** Full **Model Context Protocol (MCP)** integration, exposing the memory engine as standard tools for any compliant LLM.
+## Judge path
 
-## 📊 Rigorous Benchmarks (132-Scenario Sweep)
+Use the 3-minute sequence in [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md):
 
-To prove the efficacy of our memory architecture, we benchmarked Volta against three industry-standard baselines across **132 chronological evaluation scenarios**:
+1. Confirm a bill of R3,200 and the preference to keep lights on.
+2. Correct the bill to R3,800.
+3. End the session and inspect the lifecycle receipt.
+4. Open the Memory Map and follow the current-to-superseded relation.
+5. Ask for advice in a new session and inspect “Why this advice.”
 
-| System | Recall Accuracy | Correction Accuracy | Forgetting Accuracy | Downstream Quality | Online Latency P50 (ms) | Online Cost Avg ($) | Sample runs |
-|---|---|---|---|---|---|---|---|
-| **A_no_memory** | 0.1364 (9/66) | 0.0000 (0/6) | 0.7917 (19/24) | 0.3457 (28/81) | 5500 | $0.001542 | 33 |
-| **B_full_context** | 1.0000 (66/66) | 0.0000 (0/6) | 0.2500 (6/24) | 0.8519 (69/81) | 6856 | $0.001813 | 33 |
-| **C_naive_rag** | 0.9091 (60/66) | 0.0000 (0/6) | 0.1667 (4/24) | 0.7901 (64/81) | 10573 | $0.001639 | 33 |
-| **D_volta_memory** | 0.8333 (55/66) | **0.5000 (3/6)** | **0.6667 (16/24)** | 0.8148 (66/81) | 9338 | $0.002010 | 33 |
+## Measured evidence
 
-* **Active Correction**: Volta is the **only** memory architecture capable of overwriting outdated facts with corrections downstream, achieving **50% Downstream Correction Accuracy** and **100% DB Superseded Accuracy**.
-* **Selective Forgetting**: Volta beats all memory-capable baselines at decay-based forgetting (**66.7%** vs. 25% for full-context and 16.7% for naive RAG) by excluding low-importance/decayed memories under a token budget.
-* **Recall & Quality**: Volta maintains competitive downstream response quality (**0.8148**) compared to full-history (**0.8519**) while consuming **34% fewer tokens**.
+The checked-in artifact records one completed 132-case, three-replicate comparative sweep with Qwen `qwen-max`; all 132 cases completed successfully for evaluator commit `cf845c7e`. That report shows that Volta persisted all six tested supersession chains in the database, improved selective-forgetting accuracy over the memory-capable baselines, and trades some full-history recall for governed retrieval. It does **not** claim perfect downstream correction or perfect exclusion. Any later lifecycle/retrieval code change requires a fresh full sweep and regenerated artifacts before its metrics are presented as release evidence.
 
-For the detailed logs and methodology, see [BENCHMARKS.md](BENCHMARKS.md).
+- [Benchmark report](BENCHMARKS.md)
+- [Machine-readable summary](backend/eval/artifacts/evaluation-summary.json)
+- [Sanitized per-case measurements](backend/eval/artifacts/evaluation-cases.jsonl)
+- [Evaluation method and limitations](EVALUATION.md)
 
-## 📚 Deep Dive Documentation
-We have prepared a comprehensive 16-document suite covering every aspect of this project—from the database schema to our product roadmap. 
+## Architecture and cloud proof
 
-**Start Here:**
-* 📖 [Master Index & Table of Contents](docs/00_Master_Index.md)
-* 🚀 [Demo Script (3-Session Scenario)](docs/06_Demo_Script.md)
-* 📐 [Memory System Design & Decay Logic](docs/03_Memory_System_Design.md)
-* 🗺️ [Architecture Diagrams](docs/15_Architecture_Diagram_Spec.md)
-* 💡 [FAQ & One-Page Pitch](docs/11_FAQ_and_One_Pager.md)
+- [Architecture](ARCHITECTURE.md)
+- [Architecture diagram](docs/architecture.svg)
+- [Production operations](deployment/alibaba/production-operations.md)
+- [Deployment verification script](deployment/proof/deployment_verification.py)
+- [Security model](SECURITY.md)
 
-*(See the `docs/` directory for PRDs, Security, Roadmap, and more).*
+## Local development
 
-## 🚀 Getting Started Locally
-
-### 1. Backend (FastAPI + Memory Engine)
 ```bash
+# Backend
 cd backend
 python3 -m pip install -e .
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
 
-### 2. Frontend (Next.js Solar Concierge)
-```bash
+# Frontend, in another terminal
 cd frontend
 npm install
 npm run dev
-# Open http://localhost:3000 to interact with Volta
 ```
 
----
-*Built with ❤️ for the Qwen Cloud Global AI Hackathon (June 2026).*
+Localhost is permitted only during development. Static production releases are blocked if they contain a localhost API reference.
+
+## Production release contract
+
+Before a static release, configure only non-secret public origins in the release environment:
+
+```bash
+export APP_ENV=production
+export VOLTA_PUBLIC_APP_ORIGIN=https://app.example.com
+export VOLTA_PUBLIC_API_BASE_URL=https://api.example.com
+python scripts/build_static_release.py
+python scripts/upload_frontend.py
+```
+
+`build_static_release.py` writes `runtime-config.js` before the Next build and validates the exported output. It never places a Qwen key, database URL, or cloud credential in the static bundle. See [production operations](deployment/alibaba/production-operations.md) for gateway, RAM, Secrets Manager, SLS, migration, and smoke-test requirements.
+
+## Submission assets
+
+- [Submission checklist and copy](SUBMISSION.md)
+- [Generated judge deck](docs/volta_memory_deck.pptx)
+- [Demo runbook](DEMO_RUNBOOK.md)
+
+The public video URL must be added to `SUBMISSION.md` after it is uploaded and verified as publicly viewable.
