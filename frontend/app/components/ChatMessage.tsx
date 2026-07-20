@@ -6,7 +6,13 @@ const memoryText = (item: any) => item?.content || item?.observation || item?.te
 
 export default function ChatMessage({ role, content, memoryContext, explainTrace }: Props) {
   const evidence = Array.isArray(memoryContext) ? memoryContext.filter(memoryText) : [];
-  const hasWhy = !!explainTrace || evidence.length > 0;
+  const hasWhy = (
+    evidence.length > 0 ||
+    !!explainTrace?.confidence_tier_choice ||
+    !!explainTrace?.primary_influence_memory_id ||
+    !!explainTrace?.counterfactual ||
+    (!!explainTrace?.referenced_memory_ids && explainTrace.referenced_memory_ids.length > 0)
+  );
   return (
     <article className={`message ${role}`} aria-label={`${role} message`}>
       <div className="message-avatar">{role === "assistant" ? <Bot size={17} /> : <User size={17} />}</div>
