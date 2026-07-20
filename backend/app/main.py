@@ -92,17 +92,26 @@ static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists() and (settings.app_env != "production" or settings.serve_bundled_static):
     app.mount("/_next", StaticFiles(directory=str(static_dir / "_next")), name="next_static")
 
+    def _serve_static_path(path: str) -> FileResponse:
+        """Resolve Next's static-export directory indexes without path escape."""
+        static_root = static_dir.resolve()
+        candidate = (static_root / path.lstrip("/")).resolve()
+        if candidate != static_root and static_root not in candidate.parents:
+            return FileResponse(str(static_root / "index.html"))
+        if candidate.is_dir():
+            candidate = candidate / "index.html"
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(static_root / "index.html"))
+
     @app.get("/")
     def serve_index():
-        return FileResponse(str(static_dir / "index.html"))
+        return _serve_static_path("")
 
     @app.get("/memory")
     def serve_memory():
-        return FileResponse(str(static_dir / "memory.html"))
+        return _serve_static_path("memory")
 
     @app.get("/{file_name:path}")
     def serve_file(file_name: str):
-        target = static_dir / file_name
-        if target.exists() and target.is_file():
-            return FileResponse(str(target))
-        return FileResponse(str(static_dir / "index.html"))
+        return _serve_static_path(file_name)
