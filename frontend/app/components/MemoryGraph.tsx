@@ -20,6 +20,23 @@ function nodeKind(memory: any) {
 
 const colors: Record<string, string> = { fact: "#F6B93B", preference: "#9B8AFB", evidence: "#42D3E8", superseded: "#667B92" };
 
+function wrapText(text: string, maxCharsPerLine: number = 20): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    if ((currentLine + " " + word).trim().length <= maxCharsPerLine) {
+      currentLine = (currentLine + " " + word).trim();
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 export default function MemoryGraph({ memories }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 640, height: 520 });
@@ -58,7 +75,29 @@ export default function MemoryGraph({ memories }: Props) {
     <div className="graph-layout">
       <section className="panel graph-panel" aria-label="Interactive Volta memory map">
         <header><div><p className="eyebrow">Relationship map</p><h2>Homeowner evidence</h2></div><span className="pill"><MousePointer2 size={13} /> Select a memory</span></header>
-        <div ref={ref} className="graph-canvas"><ForceGraph2D width={dimensions.width} height={dimensions.height} graphData={graph} backgroundColor="#0A1728" nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence`} nodeColor={(node: any) => node.color} nodeRelSize={6} linkColor={(link: any) => link.color} linkWidth={(link: any) => link.kind === "correction" ? 2.5 : 1} linkDirectionalArrowLength={(link: any) => link.kind === "correction" ? 5 : 0} onNodeClick={(node: any) => setSelected(node.memory)} nodeCanvasObjectMode={() => "after"} nodeCanvasObject={(node: any, context, scale) => { if (scale < 1.1) return; const label = node.name.length > 34 ? `${node.name.slice(0, 34)}…` : node.name; context.font = `${Math.max(10, 12 / scale)}px sans-serif`; context.fillStyle = node.memory.is_superseded ? "#9FB0C3" : "#F4F7FB"; context.textAlign = "center"; context.fillText(label, node.x, node.y + 14); }} /> </div>
+        <div ref={ref} className="graph-canvas"><ForceGraph2D width={dimensions.width} height={dimensions.height} graphData={graph} backgroundColor="#0A1728" nodeLabel={(node: any) => `${node.name} · ${Math.round(node.confidence * 100)}% confidence`} nodeColor={(node: any) => node.color} nodeRelSize={6} linkColor={(link: any) => link.color} linkWidth={(link: any) => link.kind === "correction" ? 2.5 : 1} linkDirectionalArrowLength={(link: any) => link.kind === "correction" ? 5 : 0} onNodeClick={(node: any) => setSelected(node.memory)} nodeCanvasObjectMode={() => "after"}         nodeCanvasObject={(node: any, context, scale) => {
+          if (scale < 0.9) return;
+          const maxLines = 3;
+          const rawLines = wrapText(node.name, 18);
+          const lines = rawLines.slice(0, maxLines);
+          if (rawLines.length > maxLines) {
+            lines[maxLines - 1] += "…";
+          }
+          
+          const fontSize = Math.max(9, 11 / scale);
+          context.font = `600 ${fontSize}px 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+          context.fillStyle = node.memory.is_superseded ? "#9FB0C3" : "#F4F7FB";
+          context.textAlign = "center";
+          context.textBaseline = "top";
+          
+          const lineHeight = fontSize * 1.25;
+          const radius = Math.sqrt(node.val || 10) * 1.5;
+          const startY = node.y + radius + 4;
+          
+          lines.forEach((line, i) => {
+            context.fillText(line, node.x, startY + i * lineHeight);
+          });
+        }} /> </div>
         <footer aria-label="Memory map legend"><span><i className="legend-dot gold" /> Active facts</span><span><i className="legend-dot violet" /> Preferences</span><span><i className="legend-dot cyan" /> Evidence</span><span><i className="legend-dot muted-dot" /> Superseded</span><span><Link2 size={12} /> Links show reinforcement or correction</span></footer>
       </section>
 
