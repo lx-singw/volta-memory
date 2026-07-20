@@ -161,3 +161,40 @@ def get_consolidation_log(entity_id: str) -> dict:
 def trigger_consolidation(entity_id: str) -> dict:
     result = run_consolidation(entity_id)
     return result.model_dump()
+
+
+@router.post("/entities/{entity_id}/reset")
+def reset_entity_data(entity_id: str) -> dict:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            DELETE FROM explain_traces 
+            WHERE message_id IN (
+                SELECT id FROM messages 
+                WHERE conversation_id IN (
+                    SELECT id FROM conversations WHERE entity_id = %s
+                )
+            )
+            """, 
+            (entity_id,)
+        )
+        conn.execute(
+            """
+            DELETE FROM messages 
+            WHERE conversation_id IN (
+                SELECT id FROM conversations WHERE entity_id = %s
+            )
+            """, 
+            (entity_id,)
+        )
+        conn.execute("DELETE FROM memories WHERE entity_id = %s", (entity_id,))
+        conn.execute("DELETE FROM conversations WHERE entity_id = %s", (entity_id,))
+        conn.execute("DELETE FROM transcript_chunks WHERE entity_id = %s", (entity_id,))
+    return {"status": "success", "message": f"Successfully reset all data for entity '{entity_id}'"}
+
+
+@router.post("/entities/{entity_id}/reseed")
+def reseed_entity_data(entity_id: str) -> dict:
+    from app.utils.seeder import seed_entity
+    seed_entity(entity_id)
+    return {"status": "success", "message": f"Successfully reseeded data for entity '{entity_id}'"}

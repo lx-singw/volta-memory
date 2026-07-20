@@ -5,12 +5,15 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Generator
 
+import logging
 import psycopg
 from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 _pool: ConnectionPool | None = None
 

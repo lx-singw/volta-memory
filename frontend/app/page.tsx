@@ -27,6 +27,50 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Hydration state to prevent initial save of empty states
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load state from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSessionId = sessionStorage.getItem("volta_session_id");
+      const savedMessages = sessionStorage.getItem("volta_chat_messages");
+      
+      if (savedSessionId) {
+        setSessionId(savedSessionId);
+      }
+      if (savedMessages) {
+        try {
+          setMessages(JSON.parse(savedMessages));
+        } catch (e) {
+          console.error("Error parsing saved messages", e);
+        }
+      }
+      setIsHydrated(true);
+    }
+  }, []);
+
+  // Save state to sessionStorage on changes
+  useEffect(() => {
+    if (isHydrated && typeof window !== "undefined") {
+      if (sessionId) {
+        sessionStorage.setItem("volta_session_id", sessionId);
+      } else {
+        sessionStorage.removeItem("volta_session_id");
+      }
+    }
+  }, [sessionId, isHydrated]);
+
+  useEffect(() => {
+    if (isHydrated && typeof window !== "undefined") {
+      if (messages.length > 0) {
+        sessionStorage.setItem("volta_chat_messages", JSON.stringify(messages));
+      } else {
+        sessionStorage.removeItem("volta_chat_messages");
+      }
+    }
+  }, [messages, isHydrated]);
+  
   // Voice State
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -145,6 +189,40 @@ export default function ChatPage() {
     }
   }
 
+  async function handleReset() {
+    if (confirm("Are you sure you want to completely clear all memory and chat history?")) {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/entities/${ENTITY_ID}/reset`, { method: "POST" });
+        if (!res.ok) throw new Error(await res.text());
+        setMessages([]);
+        setSessionId(null);
+        alert("Memory and chat history cleared successfully!");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to reset memory");
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function handleReseed() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/entities/${ENTITY_ID}/reseed`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      setMessages([]);
+      setSessionId(null);
+      alert("Demo data seeded successfully!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to re-seed demo data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "sans-serif" }}>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -163,7 +241,42 @@ export default function ChatPage() {
           <BatteryCharging size={20} color="#38bdf8" /> Premium Home Energy Profile: {ENTITY_ID}
         </p>
         
-        <SessionControls sessionActive={!!sessionId} loading={loading} onStart={startSession} onEnd={endSession} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <SessionControls sessionActive={!!sessionId} loading={loading} onStart={startSession} onEnd={endSession} />
+          
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button 
+              onClick={handleReset} 
+              disabled={loading || !!sessionId} 
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: 8,
+                border: "1px solid #ef4444",
+                background: "transparent",
+                color: "#f87171",
+                cursor: (loading || !!sessionId) ? "not-allowed" : "pointer",
+                opacity: (loading || !!sessionId) ? 0.5 : 1
+              }}
+            >
+              Reset Memory
+            </button>
+            <button 
+              onClick={handleReseed} 
+              disabled={loading || !!sessionId} 
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: 8,
+                border: "1px solid #8b5cf6",
+                background: "transparent",
+                color: "#a78bfa",
+                cursor: (loading || !!sessionId) ? "not-allowed" : "pointer",
+                opacity: (loading || !!sessionId) ? 0.5 : 1
+              }}
+            >
+              Re-seed Demo Data
+            </button>
+          </div>
+        </div>
         {error && <div style={{ marginTop: "1rem", color: "#f87171", background: "rgba(248,113,113,0.1)", padding: "1rem", borderRadius: "8px" }}>{error}</div>}
 
         {loading && !sessionId && (
