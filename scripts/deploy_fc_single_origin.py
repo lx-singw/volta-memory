@@ -140,7 +140,9 @@ def main() -> int:
             run([serverless, "-t", "s.single-origin.yaml", "build", "--use-docker"], environment=environment)
         elif not dependency_marker.is_dir():
             restore_dependency_bundle()
-        run([serverless, "-t", "s.single-origin.yaml", "deploy", "-y"], environment=environment)
+        # Serverless Devs otherwise echoes environment-variable diffs, which
+        # can expose deployed secrets in terminal recordings or CI logs.
+        run([serverless, "--silent", "-t", "s.single-origin.yaml", "deploy", "-y"], environment=environment)
         response = httpx.get(f"{function_origin}/health", timeout=20)
         response.raise_for_status()
         if response.json().get("status") != "ok":
