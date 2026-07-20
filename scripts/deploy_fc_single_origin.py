@@ -14,6 +14,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -22,6 +23,7 @@ from dotenv import dotenv_values
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+DEPENDENCY_ARCHIVE = REPO_ROOT / "deployment" / "artifacts" / "volta-memory-fc-python310-deps.tar.gz"
 
 
 def normalise_origin(value: str) -> str:
@@ -37,6 +39,36 @@ def run(command: list[str], *, environment: dict[str, str]) -> None:
     result = subprocess.run(command, cwd=REPO_ROOT, env=environment)
     if result.returncode:
         raise RuntimeError(f"Command failed with exit code {result.returncode}: {' '.join(command)}")
+
+
+def restore_dependency_bundle() -> None:
+    """Restore the versioned Linux dependency bundle when cloning for release."""
+    dependency_root = REPO_ROOT / "backend" / "python"
+    if (dependency_root / "fastapi").is_dir():
+        return
+    if not DEPENDENCY_ARCHIVE.is_file():
+        raise RuntimeError(
+            "backend/python and the versioned Function Compute dependency archive are both missing. "
+            "Restore Docker Hub connectivity and rerun with --build-fc."
+        )
+
+    backend_root = (REPO_ROOT / "backend").resolve()
+    dependency_root = dependency_root.resolve()
+    print(f"Restoring Linux Function Compute dependencies from {DEPENDENCY_ARCHIVE.relative_to(REPO_ROOT)}")
+    with tarfile.open(DEPENDENCY_ARCHIVE, "r:gz") as archive:
+        members = archive.getmembers()
+        for member in members:
+            destination = (backend_root / member.name).resolve()
+            if (
+                member.issym()
+                or member.islnk()
+                or (destination != dependency_root and dependency_root not in destination.parents)
+            ):
+                raise RuntimeError("Dependency archive contains an unsafe path.")
+        archive.extractall(backend_root, members=members)
+
+    if not (dependency_root / "fastapi").is_dir():
+        raise RuntimeError("Dependency archive did not contain the expected FastAPI runtime bundle.")
 
 
 def main() -> int:
@@ -100,16 +132,14 @@ def main() -> int:
         if not args.skip_migrations:
             run(["bash", "migrate.sh"], environment=environment)
         run([sys.executable, "scripts/build_fc_single_origin_release.py"], environment=environment)
-        # `backend/python` is an existing Linux dependency bundle created by
-        # the prior Docker FC build. Reusing it makes a release possible when
-        # Docker Hub DNS is unavailable; use --build-fc only to refresh it.
+        # The versioned Linux bundle was created by the FC Docker build. It
+        # makes a Cloud Shell release reproducible even when Docker Hub is not
+        # reachable; use --build-fc only to refresh it.
         dependency_marker = REPO_ROOT / "backend" / "python" / "fastapi"
         if args.build_fc:
             run([serverless, "-t", "s.single-origin.yaml", "build", "--use-docker"], environment=environment)
         elif not dependency_marker.is_dir():
-            raise RuntimeError(
-                "backend/python is missing. Restore Docker Hub connectivity and rerun with --build-fc."
-            )
+            restore_dependency_bundle()
         run([serverless, "-t", "s.single-origin.yaml", "deploy", "-y"], environment=environment)
         response = httpx.get(f"{function_origin}/health", timeout=20)
         response.raise_for_status()
